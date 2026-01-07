@@ -4,7 +4,8 @@
 # WireGuard Panel Manager v4.0
 # ===========================================
 
-set -e
+# Don't exit on error - handle errors manually
+set +e
 
 # Colors
 RED='\033[0;31m'
