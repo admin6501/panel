@@ -699,7 +699,8 @@ async def get_settings(current_user: TokenData = Depends(require_admin)):
 @app.put("/api/settings")
 async def update_settings(settings_update: dict, current_user: TokenData = Depends(require_super_admin)):
     allowed_fields = [
-        "server_name", "endpoint", "wg_port", "wg_dns", "mtu", "persistent_keepalive"
+        "server_name", "endpoint", "wg_port", "wg_dns", "mtu", "persistent_keepalive",
+        "subscription_enabled"
     ]
     update_data = {k: v for k, v in settings_update.items() if k in allowed_fields}
     
@@ -712,6 +713,73 @@ async def update_settings(settings_update: dict, current_user: TokenData = Depen
     settings = settings_collection.find_one({"id": "server_settings"}, {"_id": 0})
     settings.pop("server_private_key", None)
     return settings
+
+
+# ==================== SUBSCRIPTION PAGE ROUTES ====================
+
+@app.get("/api/sub/{client_id}")
+async def get_subscription_info(client_id: str):
+    """Public subscription page - shows client info without auth"""
+    # Check if subscription is enabled
+    settings = settings_collection.find_one({"id": "server_settings"})
+    if not settings or not settings.get("subscription_enabled", True):
+        raise HTTPException(status_code=403, detail="Subscription page is disabled")
+    
+    client = clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Get WireGuard stats
+    stats = wg_manager.get_interface_stats()
+    public_key = client.get("public_key", "")
+    
+    download = 0
+    upload = 0
+    is_online = False
+    
+    if public_key in stats:
+        client_stats = stats[public_key]
+        download = client_stats.get("transfer_rx", 0)
+        upload = client_stats.get("transfer_tx", 0)
+        if client_stats.get("latest_handshake"):
+            is_online = (datetime.now().timestamp() - client_stats["latest_handshake"]) < 180
+    
+    total_used = download + upload
+    data_limit = client.get("data_limit")
+    remaining = (data_limit - total_used) if data_limit else None
+    
+    # Determine status
+    status = "active"
+    if not client.get("is_enabled", True):
+        status = "disabled"
+    elif client.get("expiry_date"):
+        expiry = client["expiry_date"]
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry.replace('Z', '+00:00'))
+        if expiry < datetime.utcnow():
+            status = "expired"
+    
+    if data_limit and total_used >= data_limit:
+        status = "data_limit_reached"
+    
+    return {
+        "name": client.get("name"),
+        "status": status,
+        "is_online": is_online,
+        "expiry_date": client.get("expiry_date"),
+        "expiry_days": client.get("expiry_days"),
+        "start_on_first_connect": client.get("start_on_first_connect", False),
+        "timer_started": client.get("timer_started", True),
+        "first_connection_at": client.get("first_connection_at"),
+        "data_limit": data_limit,
+        "data_used": total_used,
+        "data_remaining": remaining,
+        "download": download,
+        "upload": upload,
+        "auto_renew": client.get("auto_renew", False),
+        "renew_count": client.get("renew_count", 0),
+        "created_at": client.get("created_at")
+    }
 
 
 # ==================== DASHBOARD ROUTES ====================
