@@ -1159,6 +1159,9 @@ install_panel() {
     
     detect_os
     ask_user_config
+    if [ $? -ne 0 ]; then
+        return 0
+    fi
     
     print_info "Starting installation..."
     
