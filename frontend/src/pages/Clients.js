@@ -377,12 +377,20 @@ const Clients = () => {
                             <Power className="w-4 h-4" />
                             {client.is_enabled ? t('clients.disable') : t('clients.enable')}
                           </button>
+                          <div className="border-t border-dark-border my-1"></div>
                           <button
                             onClick={() => { handleResetData(client); setOpenMenu(null); }}
                             className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
                           >
                             <Database className="w-4 h-4" />
                             {t('clients.resetData')}
+                          </button>
+                          <button
+                            onClick={() => { handleResetTimer(client); setOpenMenu(null); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
+                          >
+                            <Timer className="w-4 h-4" />
+                            {t('clients.resetTimer')}
                           </button>
                           <button
                             onClick={() => { handleResetExpiry(client, 30); setOpenMenu(null); }}
@@ -398,6 +406,14 @@ const Clients = () => {
                             <Infinity className="w-4 h-4" />
                             {t('clients.removeExpiry')}
                           </button>
+                          <button
+                            onClick={() => { handleFullReset(client); setOpenMenu(null); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            {t('clients.fullReset')}
+                          </button>
+                          <div className="border-t border-dark-border my-1"></div>
                           <button
                             onClick={() => { handleDelete(client); setOpenMenu(null); }}
                             className="w-full flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-red-500/10 transition-colors"
