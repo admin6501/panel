@@ -213,12 +213,6 @@ def init_server_settings():
         print(f"Server settings initialized with endpoint: {default_endpoint or '(not set)'}")
 
 
-@app.on_event("startup")
-async def startup_event():
-    init_super_admin()
-    init_server_settings()
-
-
 # ==================== AUTH ROUTES ====================
 
 @app.post("/api/auth/login", response_model=Token)
