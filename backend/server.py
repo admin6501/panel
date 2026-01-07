@@ -67,7 +67,17 @@ def init_super_admin():
 def init_server_settings():
     """Initialize server settings if not exists"""
     if settings_collection.count_documents({"id": "server_settings"}) == 0:
-        private_key, public_key = wg_manager.generate_keys()
+        # Check for environment variables from install script
+        server_public_key = os.environ.get("SERVER_PUBLIC_KEY", "")
+        server_private_key = os.environ.get("SERVER_PRIVATE_KEY", "")
+        
+        # Generate keys if not provided
+        if not server_public_key or not server_private_key:
+            server_private_key, server_public_key = wg_manager.generate_keys()
+        
+        # Get endpoint from environment or leave empty
+        default_endpoint = os.environ.get("DEFAULT_ENDPOINT", "")
+        
         settings = {
             "id": "server_settings",
             "server_name": "WireGuard Panel",
@@ -75,15 +85,15 @@ def init_server_settings():
             "wg_port": int(os.environ.get("WG_PORT", "51820")),
             "wg_network": os.environ.get("WG_NETWORK", "10.0.0.0/24"),
             "wg_dns": os.environ.get("WG_DNS", "1.1.1.1,8.8.8.8"),
-            "server_public_key": public_key,
-            "server_private_key": private_key,
+            "server_public_key": server_public_key,
+            "server_private_key": server_private_key,
             "server_address": "10.0.0.1/24",
-            "endpoint": "",
+            "endpoint": default_endpoint,
             "mtu": 1420,
             "persistent_keepalive": 25
         }
         settings_collection.insert_one(settings)
-        print("Server settings initialized")
+        print(f"Server settings initialized with endpoint: {default_endpoint or '(not set)'}")
 
 
 @app.on_event("startup")
