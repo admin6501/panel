@@ -2174,6 +2174,9 @@ I18NJS_EOF
     # Create page components
     create_page_components
     
+    # Create Clients page
+    create_clients_page
+    
     # Create Layout component
     create_layout_component
 }
