@@ -53,6 +53,11 @@ class ClientBase(BaseModel):
     email: Optional[str] = None
     data_limit: Optional[int] = None  # in bytes, None = unlimited
     expiry_date: Optional[datetime] = None  # None = never expires
+    expiry_days: Optional[int] = None  # Duration in days (used for reset)
+    start_on_first_connect: bool = False  # Start timer on first connection
+    auto_renew: bool = False  # Auto renew when expired or data limit reached
+    auto_renew_days: Optional[int] = None  # Days for auto renewal
+    auto_renew_data_limit: Optional[int] = None  # Data limit for auto renewal (bytes)
     note: Optional[str] = None
 
 
@@ -65,6 +70,11 @@ class ClientUpdate(BaseModel):
     email: Optional[str] = None
     data_limit: Optional[int] = None
     expiry_date: Optional[datetime] = None
+    expiry_days: Optional[int] = None
+    start_on_first_connect: Optional[bool] = None
+    auto_renew: Optional[bool] = None
+    auto_renew_days: Optional[int] = None
+    auto_renew_data_limit: Optional[int] = None
     note: Optional[str] = None
     is_enabled: Optional[bool] = None
 
@@ -81,6 +91,9 @@ class Client(ClientBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: Optional[str] = None
     last_handshake: Optional[datetime] = None
+    first_connection_at: Optional[datetime] = None  # First connection time
+    timer_started: bool = False  # Has the timer started?
+    renew_count: int = 0  # Number of auto renewals
 
     class Config:
         from_attributes = True
