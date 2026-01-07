@@ -540,16 +540,115 @@ const Clients = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-dark-text text-sm font-medium mb-2">
-              {t('clients.expiryDate')}
-            </label>
-            <input
-              type="date"
-              value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
-            />
+          {/* Time Settings Section */}
+          <div className="border border-dark-border rounded-lg p-4 space-y-4">
+            <h3 className="text-white font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary-500" />
+              {t('clients.timeSettings')}
+            </h3>
+
+            <div>
+              <label className="block text-dark-text text-sm font-medium mb-2">
+                {t('clients.expiryDays')}
+              </label>
+              <input
+                type="number"
+                value={formData.expiry_days}
+                onChange={(e) => setFormData({ ...formData, expiry_days: e.target.value })}
+                className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
+                placeholder="30"
+                min="1"
+              />
+              <p className="text-dark-muted text-xs mt-1">{t('clients.expiryDaysHelp')}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="start_on_first_connect"
+                checked={formData.start_on_first_connect}
+                onChange={(e) => setFormData({ ...formData, start_on_first_connect: e.target.checked })}
+                className="w-4 h-4 text-primary-600 bg-dark-bg border-dark-border rounded focus:ring-primary-500"
+              />
+              <label htmlFor="start_on_first_connect" className="text-dark-text text-sm">
+                {t('clients.startOnFirstConnect')}
+              </label>
+            </div>
+
+            {!formData.start_on_first_connect && (
+              <div>
+                <label className="block text-dark-text text-sm font-medium mb-2">
+                  {t('clients.expiryDate')}
+                </label>
+                <input
+                  type="date"
+                  value={formData.expiry_date}
+                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                  className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Auto Renewal Section */}
+          <div className="border border-dark-border rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="auto_renew"
+                checked={formData.auto_renew}
+                onChange={(e) => setFormData({ ...formData, auto_renew: e.target.checked })}
+                className="w-4 h-4 text-primary-600 bg-dark-bg border-dark-border rounded focus:ring-primary-500"
+              />
+              <label htmlFor="auto_renew" className="text-white font-medium flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                {t('clients.autoRenew')}
+              </label>
+            </div>
+
+            {formData.auto_renew && (
+              <>
+                <div>
+                  <label className="block text-dark-text text-sm font-medium mb-2">
+                    {t('clients.autoRenewDays')}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.auto_renew_days}
+                    onChange={(e) => setFormData({ ...formData, auto_renew_days: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
+                    placeholder={t('clients.sameAsExpiry')}
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-dark-text text-sm font-medium mb-2">
+                    {t('clients.autoRenewData')}
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={formData.auto_renew_data_limit}
+                      onChange={(e) => setFormData({ ...formData, auto_renew_data_limit: e.target.value })}
+                      className="flex-1 bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
+                      placeholder={t('clients.sameAsDataLimit')}
+                      min="0"
+                      step="0.01"
+                    />
+                    <select
+                      value={formData.auto_renew_data_unit}
+                      onChange={(e) => setFormData({ ...formData, auto_renew_data_unit: e.target.value })}
+                      className="bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
+                    >
+                      <option value="MB">MB</option>
+                      <option value="GB">GB</option>
+                      <option value="TB">TB</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div>
