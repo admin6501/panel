@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Response
+from fastapi import FastAPI, HTTPException, Depends, status, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pymongo import MongoClient
 from datetime import datetime, timedelta
 from typing import List, Optional
+from contextlib import asynccontextmanager
 import os
 import io
 import qrcode
 import uuid
+import asyncio
+import threading
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,7 +26,121 @@ from auth import (
 )
 from wireguard import wg_manager
 
-app = FastAPI(title="WireGuard Panel API", version="1.0.0")
+
+# Background task for auto-renewal and first connection detection
+auto_renewal_running = False
+
+def check_clients_task():
+    """Background task to check clients for auto-renewal and first connection"""
+    global auto_renewal_running
+    while auto_renewal_running:
+        try:
+            check_and_process_clients()
+        except Exception as e:
+            print(f"Error in background task: {e}")
+        # Check every 60 seconds
+        import time
+        time.sleep(60)
+
+
+def check_and_process_clients():
+    """Check all clients for first connection and auto-renewal"""
+    from pymongo import MongoClient
+    mongo_client = MongoClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017"))
+    db = mongo_client[os.environ.get("DB_NAME", "wireguard_panel")]
+    clients_col = db["clients"]
+    
+    # Get WireGuard stats
+    stats = wg_manager.get_interface_stats()
+    
+    for client in clients_col.find({"is_enabled": True}):
+        client_id = client["id"]
+        public_key = client.get("public_key", "")
+        
+        # Check for first connection
+        if client.get("start_on_first_connect") and not client.get("timer_started"):
+            if public_key in stats:
+                client_stats = stats[public_key]
+                if client_stats.get("latest_handshake"):
+                    # First connection detected!
+                    expiry_days = client.get("expiry_days", 30)
+                    new_expiry = datetime.utcnow() + timedelta(days=expiry_days)
+                    
+                    clients_col.update_one(
+                        {"id": client_id},
+                        {"$set": {
+                            "first_connection_at": datetime.utcnow(),
+                            "timer_started": True,
+                            "expiry_date": new_expiry
+                        }}
+                    )
+                    print(f"Timer started for client {client.get('name')}: {expiry_days} days")
+        
+        # Check for auto-renewal
+        if client.get("auto_renew"):
+            needs_renewal = False
+            
+            # Check expiry
+            expiry_date = client.get("expiry_date")
+            if expiry_date:
+                if isinstance(expiry_date, str):
+                    expiry_date = datetime.fromisoformat(expiry_date.replace('Z', '+00:00'))
+                if expiry_date < datetime.utcnow():
+                    needs_renewal = True
+            
+            # Check data limit
+            data_limit = client.get("data_limit")
+            data_used = client.get("data_used", 0)
+            if data_limit and data_used >= data_limit:
+                needs_renewal = True
+            
+            if needs_renewal:
+                # Auto renew
+                renew_days = client.get("auto_renew_days") or client.get("expiry_days") or 30
+                renew_data = client.get("auto_renew_data_limit") or client.get("data_limit")
+                
+                update_data = {
+                    "data_used": 0,
+                    "renew_count": client.get("renew_count", 0) + 1
+                }
+                
+                if renew_days:
+                    update_data["expiry_date"] = datetime.utcnow() + timedelta(days=renew_days)
+                
+                if renew_data:
+                    update_data["data_limit"] = renew_data
+                
+                clients_col.update_one(
+                    {"id": client_id},
+                    {"$set": update_data}
+                )
+                print(f"Auto-renewed client {client.get('name')}: {renew_days} days, {renew_data} bytes")
+    
+    mongo_client.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global auto_renewal_running
+    auto_renewal_running = True
+    
+    init_super_admin()
+    init_server_settings()
+    
+    # Start background task
+    bg_thread = threading.Thread(target=check_clients_task, daemon=True)
+    bg_thread.start()
+    print("Background auto-renewal task started")
+    
+    yield
+    
+    # Shutdown
+    auto_renewal_running = False
+    print("Background task stopped")
+
+
+app = FastAPI(title="WireGuard Panel API", version="1.0.0", lifespan=lifespan)
 
 # CORS
 app.add_middleware(
