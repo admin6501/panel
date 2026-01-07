@@ -144,9 +144,10 @@ ask_user_config() {
     echo -e "  WireGuard Port: ${GREEN}$WG_PORT${NC}"
     echo ""
     
-    read -p "Continue with installation? / ادامه نصب؟ (y/n): " -n 1 -r
+    read -p "Continue with installation? / ادامه نصب؟ (y/n) [y]: " -r REPLY
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    REPLY=${REPLY:-y}
+    if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z "$REPLY" ]]; then
         print_info "Installation cancelled. / نصب لغو شد."
         exit 0
     fi
