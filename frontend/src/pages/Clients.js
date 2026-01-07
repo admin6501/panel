@@ -79,7 +79,14 @@ const Clients = () => {
         data_limit: formData.data_limit
           ? parseFloat(formData.data_limit) * getUnitMultiplier(formData.data_limit_unit)
           : null,
-        expiry_date: formData.expiry_date || null,
+        expiry_days: formData.expiry_days ? parseInt(formData.expiry_days) : null,
+        expiry_date: (!formData.start_on_first_connect && formData.expiry_date) ? formData.expiry_date : null,
+        start_on_first_connect: formData.start_on_first_connect,
+        auto_renew: formData.auto_renew,
+        auto_renew_days: formData.auto_renew_days ? parseInt(formData.auto_renew_days) : null,
+        auto_renew_data_limit: formData.auto_renew_data_limit
+          ? parseFloat(formData.auto_renew_data_limit) * getUnitMultiplier(formData.auto_renew_data_unit)
+          : null,
         note: formData.note || null
       };
 
