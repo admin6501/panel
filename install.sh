@@ -1,13 +1,17 @@
 #!/bin/bash
 
 # ===========================================
-# WireGuard Panel Auto Installer v2.0
+# WireGuard Panel Manager v2.0
 # ===========================================
-# Features:
-# - Auto-detect and install WireGuard
-# - Optional SSL with Let's Encrypt
-# - Auto-configure endpoint
-# - Docker deployment
+# Commands:
+#   install   - Install the panel
+#   start     - Start the panel
+#   stop      - Stop the panel
+#   restart   - Restart the panel
+#   status    - Show panel status
+#   update    - Update panel without losing data
+#   uninstall - Remove panel completely
+#   logs      - Show panel logs
 # ===========================================
 
 set -e
@@ -32,16 +36,17 @@ PANEL_SSL_PORT="443"
 USE_SSL="n"
 DOMAIN=""
 SERVER_IP=""
+SCRIPT_VERSION="2.0"
 
 # Banner
 print_banner() {
     echo -e "${CYAN}"
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║                                                           ║"
-    echo "║     🛡️  WireGuard Panel Installer v2.0  🛡️              ║"
+    echo "║     🛡️  WireGuard Panel Manager v${SCRIPT_VERSION}  🛡️              ║"
     echo "║                                                           ║"
     echo "║     A Modern VPN Management System                        ║"
-    echo "║     با پشتیبانی SSL و نصب خودکار                          ║"
+    echo "║     پنل مدیریت وایرگارد                                   ║"
     echo "║                                                           ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -82,7 +87,6 @@ detect_os() {
         print_error "Cannot detect OS. /etc/os-release not found."
         exit 1
     fi
-    print_info "Detected OS: $OS $VERSION"
 }
 
 # Get server IP
@@ -93,6 +97,256 @@ get_server_ip() {
     fi
     echo "$SERVER_IP"
 }
+
+# Check if panel is installed
+check_installed() {
+    if [ ! -d "$INSTALL_DIR" ]; then
+        print_error "Panel is not installed. Run: $0 install"
+        exit 1
+    fi
+}
+
+# Check if Docker is running
+check_docker() {
+    if ! systemctl is-active --quiet docker; then
+        print_error "Docker is not running. Starting Docker..."
+        systemctl start docker
+    fi
+}
+
+# ==================== PANEL COMMANDS ====================
+
+# Start panel
+cmd_start() {
+    check_root
+    check_installed
+    check_docker
+    
+    print_info "Starting WireGuard Panel..."
+    
+    cd $INSTALL_DIR
+    docker compose up -d
+    
+    # Start WireGuard if not running
+    if ! wg show $WG_INTERFACE &>/dev/null; then
+        wg-quick up $WG_INTERFACE 2>/dev/null || true
+    fi
+    
+    sleep 3
+    
+    if docker ps | grep -q wireguard-panel-frontend; then
+        print_success "Panel started successfully!"
+        cmd_status
+    else
+        print_error "Failed to start panel. Check logs with: $0 logs"
+    fi
+}
+
+# Stop panel
+cmd_stop() {
+    check_root
+    check_installed
+    
+    print_info "Stopping WireGuard Panel..."
+    
+    cd $INSTALL_DIR
+    docker compose down
+    
+    print_success "Panel stopped successfully!"
+}
+
+# Restart panel
+cmd_restart() {
+    check_root
+    check_installed
+    check_docker
+    
+    print_info "Restarting WireGuard Panel..."
+    
+    cd $INSTALL_DIR
+    docker compose restart
+    
+    sleep 3
+    
+    if docker ps | grep -q wireguard-panel-frontend; then
+        print_success "Panel restarted successfully!"
+        cmd_status
+    else
+        print_error "Failed to restart panel. Check logs with: $0 logs"
+    fi
+}
+
+# Show status
+cmd_status() {
+    check_root
+    
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}                    Panel Status                           ${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    
+    # Check Docker containers
+    echo -e "${YELLOW}Docker Containers:${NC}"
+    if [ -d "$INSTALL_DIR" ]; then
+        cd $INSTALL_DIR
+        docker compose ps 2>/dev/null || echo "  Not running"
+    else
+        echo "  Panel not installed"
+    fi
+    
+    echo ""
+    
+    # Check WireGuard
+    echo -e "${YELLOW}WireGuard Status:${NC}"
+    if wg show $WG_INTERFACE &>/dev/null; then
+        echo -e "  Interface: ${GREEN}UP${NC}"
+        echo "  Peers: $(wg show $WG_INTERFACE peers | wc -l)"
+    else
+        echo -e "  Interface: ${RED}DOWN${NC}"
+    fi
+    
+    echo ""
+    
+    # Show URLs
+    SERVER_IP=$(get_server_ip)
+    echo -e "${YELLOW}Access URLs:${NC}"
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        source $INSTALL_DIR/.env 2>/dev/null
+        if [ "$USE_SSL" = "y" ] && [ -n "$DOMAIN" ]; then
+            echo "  Panel: https://$DOMAIN"
+        else
+            echo "  Panel: http://$SERVER_IP"
+        fi
+    else
+        echo "  Panel: http://$SERVER_IP"
+    fi
+    
+    echo ""
+}
+
+# Show logs
+cmd_logs() {
+    check_root
+    check_installed
+    
+    cd $INSTALL_DIR
+    docker compose logs -f --tail=100
+}
+
+# Update panel
+cmd_update() {
+    check_root
+    check_installed
+    check_docker
+    
+    print_banner
+    
+    echo ""
+    print_info "Updating WireGuard Panel..."
+    print_info "Your data will be preserved."
+    echo ""
+    
+    cd $INSTALL_DIR
+    
+    # Backup current config
+    print_info "Backing up configuration..."
+    cp -f .env .env.backup 2>/dev/null || true
+    
+    # Stop containers
+    print_info "Stopping containers..."
+    docker compose down
+    
+    # Pull latest images or rebuild
+    print_info "Rebuilding containers with latest code..."
+    docker compose build --no-cache
+    
+    # Start containers
+    print_info "Starting updated containers..."
+    docker compose up -d
+    
+    sleep 5
+    
+    if docker ps | grep -q wireguard-panel-frontend; then
+        print_success "Panel updated successfully!"
+        echo ""
+        print_info "Your data has been preserved."
+        cmd_status
+    else
+        print_error "Update failed. Restoring backup..."
+        cp -f .env.backup .env 2>/dev/null || true
+        docker compose up -d
+    fi
+}
+
+# Uninstall panel
+cmd_uninstall() {
+    check_root
+    
+    print_banner
+    
+    echo ""
+    echo -e "${RED}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                      ⚠️  WARNING  ⚠️                       ║${NC}"
+    echo -e "${RED}║                                                           ║${NC}"
+    echo -e "${RED}║   This will completely remove WireGuard Panel including:  ║${NC}"
+    echo -e "${RED}║   - All Docker containers and images                      ║${NC}"
+    echo -e "${RED}║   - All configuration files                               ║${NC}"
+    echo -e "${RED}║   - All user data and clients                             ║${NC}"
+    echo -e "${RED}║                                                           ║${NC}"
+    echo -e "${RED}╚═══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    read -p "Are you sure you want to uninstall? Type 'yes' to confirm: " confirm
+    
+    if [ "$confirm" != "yes" ]; then
+        print_info "Uninstall cancelled."
+        exit 0
+    fi
+    
+    echo ""
+    read -p "Do you want to keep WireGuard installed? (y/n): " keep_wg
+    
+    echo ""
+    print_info "Uninstalling WireGuard Panel..."
+    
+    # Stop and remove containers
+    if [ -d "$INSTALL_DIR" ]; then
+        cd $INSTALL_DIR
+        print_info "Stopping containers..."
+        docker compose down -v 2>/dev/null || true
+        
+        print_info "Removing Docker images..."
+        docker rmi $(docker images -q wireguard-panel* 2>/dev/null) 2>/dev/null || true
+    fi
+    
+    # Remove installation directory
+    print_info "Removing installation files..."
+    rm -rf $INSTALL_DIR
+    
+    # Remove WireGuard config (optional)
+    if [ "$keep_wg" != "y" ]; then
+        print_info "Stopping WireGuard..."
+        wg-quick down $WG_INTERFACE 2>/dev/null || true
+        systemctl disable wg-quick@$WG_INTERFACE 2>/dev/null || true
+        
+        print_info "Removing WireGuard configuration..."
+        rm -f /etc/wireguard/$WG_INTERFACE.conf
+    fi
+    
+    # Clean up Docker
+    print_info "Cleaning up Docker..."
+    docker system prune -f 2>/dev/null || true
+    
+    echo ""
+    print_success "WireGuard Panel has been uninstalled."
+    
+    if [ "$keep_wg" = "y" ]; then
+        print_info "WireGuard has been kept installed."
+    fi
+}
+
+# ==================== INSTALLATION ====================
 
 # Ask user questions
 ask_questions() {
@@ -189,31 +443,22 @@ install_docker() {
 
     case $OS in
         ubuntu|debian)
-            # Remove old versions
             apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-
-            # Add Docker's official GPG key
             install -m 0755 -d /etc/apt/keyrings
             curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
             chmod a+r /etc/apt/keyrings/docker.gpg
-
-            # Set up repository
             echo \
                 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
                 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
                 tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-            # Install Docker
             apt-get update -y
             apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
             ;;
         centos|rhel|fedora|rocky|almalinux)
-            # Install using convenience script
             curl -fsSL https://get.docker.com | sh
             ;;
     esac
 
-    # Start and enable Docker
     systemctl start docker
     systemctl enable docker
 
@@ -251,12 +496,8 @@ install_wireguard() {
 
     # Enable IP forwarding
     print_info "Enabling IP forwarding..."
-    
-    # Remove existing entries
     sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
     sed -i '/net.ipv6.conf.all.forwarding/d' /etc/sysctl.conf
-    
-    # Add new entries
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
     echo "net.ipv6.conf.all.forwarding = 1" >> /etc/sysctl.conf
     sysctl -p
@@ -270,19 +511,14 @@ setup_wireguard() {
 
     if [ -f "/etc/wireguard/$WG_INTERFACE.conf" ]; then
         print_warning "WireGuard interface $WG_INTERFACE already exists"
-        # Get existing keys
         SERVER_PRIVATE_KEY=$(grep "PrivateKey" /etc/wireguard/$WG_INTERFACE.conf | cut -d'=' -f2 | tr -d ' ')
         SERVER_PUBLIC_KEY=$(echo $SERVER_PRIVATE_KEY | wg pubkey)
         print_info "Using existing WireGuard configuration"
     else
-        # Generate server keys
         SERVER_PRIVATE_KEY=$(wg genkey)
         SERVER_PUBLIC_KEY=$(echo $SERVER_PRIVATE_KEY | wg pubkey)
-
-        # Get default network interface
         DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
 
-        # Create WireGuard config
         cat > /etc/wireguard/$WG_INTERFACE.conf << EOF
 [Interface]
 Address = $WG_SERVER_IP/24
@@ -296,7 +532,6 @@ EOF
         print_success "WireGuard config created"
     fi
 
-    # Start WireGuard if not running
     if ! wg show $WG_INTERFACE &>/dev/null; then
         wg-quick up $WG_INTERFACE
         print_success "WireGuard interface started"
@@ -316,7 +551,6 @@ install_ssl() {
 
     print_info "Installing SSL certificate for $DOMAIN..."
 
-    # Install certbot
     case $OS in
         ubuntu|debian)
             apt-get install -y certbot
@@ -326,17 +560,13 @@ install_ssl() {
             ;;
     esac
 
-    # Stop any service on port 80
     systemctl stop nginx 2>/dev/null || true
     docker stop wireguard-panel-frontend 2>/dev/null || true
 
-    # Get certificate
     certbot certonly --standalone -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --http-01-port 80
 
     if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
         print_success "SSL certificate obtained successfully"
-        
-        # Copy certificates to panel directory
         mkdir -p $INSTALL_DIR/ssl
         cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $INSTALL_DIR/ssl/
         cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $INSTALL_DIR/ssl/
@@ -354,10 +584,8 @@ setup_panel() {
     mkdir -p $INSTALL_DIR
     cd $INSTALL_DIR
 
-    # Generate JWT secret
     JWT_SECRET=$(openssl rand -hex 32)
 
-    # Create .env file
     cat > $INSTALL_DIR/.env << EOF
 JWT_SECRET=$JWT_SECRET
 PANEL_PORT=$PANEL_PORT
@@ -369,29 +597,27 @@ WG_PORT=$WG_PORT
 WG_NETWORK=$WG_NETWORK
 SERVER_PUBLIC_KEY=$SERVER_PUBLIC_KEY
 SERVER_PRIVATE_KEY=$SERVER_PRIVATE_KEY
+SCRIPT_VERSION=$SCRIPT_VERSION
 EOF
 
-    # Create nginx config based on SSL choice
     if [ "$USE_SSL" = "y" ]; then
         create_nginx_ssl_config
     else
         create_nginx_config
     fi
 
-    # Create docker-compose.yml
     create_docker_compose
-
-    # Create backend Dockerfile
     create_backend_dockerfile
-
-    # Create frontend Dockerfile
     create_frontend_dockerfile
 
-    # Create backend files
-    create_backend_files
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    if [ -d "$SCRIPT_DIR/backend" ]; then
+        cp -r $SCRIPT_DIR/backend $INSTALL_DIR/
+        cp -r $SCRIPT_DIR/frontend $INSTALL_DIR/
+    fi
 
-    # Create frontend files
-    create_frontend_files
+    echo "REACT_APP_BACKEND_URL=/api" > $INSTALL_DIR/frontend/.env 2>/dev/null || true
 
     print_success "Panel files created"
 }
@@ -678,63 +904,10 @@ CMD ["nginx", "-g", "daemon off;"]
 EOF
 }
 
-# Create backend files (simplified - copy from repo or create minimal)
-create_backend_files() {
-    mkdir -p $INSTALL_DIR/backend
-    
-    # Check if we're running from repo
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    if [ -d "$SCRIPT_DIR/backend" ]; then
-        cp -r $SCRIPT_DIR/backend/* $INSTALL_DIR/backend/
-    else
-        # Create minimal backend - in production, download from repo
-        print_warning "Backend files not found. Please copy them manually or clone from repository."
-    fi
-}
-
-# Create frontend files
-create_frontend_files() {
-    mkdir -p $INSTALL_DIR/frontend
-    
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    if [ -d "$SCRIPT_DIR/frontend" ]; then
-        cp -r $SCRIPT_DIR/frontend/* $INSTALL_DIR/frontend/
-        
-        # Update API URL in frontend
-        echo "REACT_APP_BACKEND_URL=/api" > $INSTALL_DIR/frontend/.env
-    else
-        print_warning "Frontend files not found. Please copy them manually or clone from repository."
-    fi
-}
-
-# Start the panel
-start_panel() {
-    print_info "Building and starting containers..."
-
-    cd $INSTALL_DIR
-
-    # Build and start
-    docker compose up -d --build
-
-    # Wait for services
-    print_info "Waiting for services to start..."
-    sleep 10
-
-    # Check if running
-    if docker ps | grep -q wireguard-panel-frontend; then
-        print_success "Panel is running!"
-    else
-        print_error "Failed to start panel. Check logs with: docker compose logs"
-    fi
-}
-
 # Configure firewall
 configure_firewall() {
     print_info "Configuring firewall..."
 
-    # UFW (Ubuntu/Debian)
     if command -v ufw &> /dev/null; then
         ufw allow $WG_PORT/udp
         ufw allow 80/tcp
@@ -742,7 +915,6 @@ configure_firewall() {
         print_success "UFW rules added"
     fi
 
-    # Firewalld (CentOS/RHEL)
     if command -v firewall-cmd &> /dev/null; then
         firewall-cmd --permanent --add-port=$WG_PORT/udp
         firewall-cmd --permanent --add-port=80/tcp
@@ -752,8 +924,27 @@ configure_firewall() {
     fi
 }
 
+# Start the panel
+start_panel() {
+    print_info "Building and starting containers..."
+
+    cd $INSTALL_DIR
+    docker compose up -d --build
+
+    print_info "Waiting for services to start..."
+    sleep 10
+
+    if docker ps | grep -q wireguard-panel-frontend; then
+        print_success "Panel is running!"
+    else
+        print_error "Failed to start panel. Check logs with: $0 logs"
+    fi
+}
+
 # Print completion message
 print_complete() {
+    SERVER_IP=$(get_server_ip)
+    
     echo ""
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
@@ -777,68 +968,152 @@ print_complete() {
     echo -e "${RED}⚠️  مهم: لطفاً رمز عبور پیش‌فرض را فوراً تغییر دهید!${NC}"
     echo ""
     echo -e "${CYAN}WireGuard Endpoint:${NC} $ENDPOINT:$WG_PORT"
-    echo -e "${CYAN}WireGuard Server Public Key:${NC}"
-    echo "   $SERVER_PUBLIC_KEY"
     echo ""
-    echo -e "${CYAN}Useful Commands / دستورات مفید:${NC}"
-    echo -e "   View logs:     ${YELLOW}cd $INSTALL_DIR && docker compose logs -f${NC}"
-    echo -e "   Restart:       ${YELLOW}cd $INSTALL_DIR && docker compose restart${NC}"
-    echo -e "   Stop:          ${YELLOW}cd $INSTALL_DIR && docker compose down${NC}"
-    echo -e "   WG Status:     ${YELLOW}wg show${NC}"
+    echo -e "${CYAN}Management Commands / دستورات مدیریت:${NC}"
+    echo -e "   Start:     ${YELLOW}$0 start${NC}"
+    echo -e "   Stop:      ${YELLOW}$0 stop${NC}"
+    echo -e "   Restart:   ${YELLOW}$0 restart${NC}"
+    echo -e "   Status:    ${YELLOW}$0 status${NC}"
+    echo -e "   Logs:      ${YELLOW}$0 logs${NC}"
+    echo -e "   Update:    ${YELLOW}$0 update${NC}"
+    echo -e "   Uninstall: ${YELLOW}$0 uninstall${NC}"
     echo ""
-    
-    if [ "$USE_SSL" = "y" ]; then
-        echo -e "${CYAN}SSL Certificate Renewal:${NC}"
-        echo -e "   ${YELLOW}certbot renew${NC}"
-        echo ""
-    fi
 }
 
-# Main installation flow
-main() {
-    print_banner
+# Install command
+cmd_install() {
     check_root
     detect_os
     
-    # Ask configuration questions
+    if [ -d "$INSTALL_DIR" ]; then
+        print_warning "Panel is already installed at $INSTALL_DIR"
+        read -p "Do you want to reinstall? (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 0
+        fi
+    fi
+    
+    print_banner
     ask_questions
 
     echo ""
     print_info "Starting installation..."
     echo ""
 
-    # Step 1: Install prerequisites
     print_info "Step 1/7: Installing prerequisites..."
     install_prerequisites
 
-    # Step 2: Install Docker
     print_info "Step 2/7: Installing Docker..."
     install_docker
 
-    # Step 3: Install WireGuard
     print_info "Step 3/7: Installing WireGuard..."
     install_wireguard
 
-    # Step 4: Setup WireGuard interface
     print_info "Step 4/7: Setting up WireGuard interface..."
     setup_wireguard
 
-    # Step 5: Install SSL (if requested)
     print_info "Step 5/7: Setting up SSL..."
     install_ssl
 
-    # Step 6: Setup panel files
     print_info "Step 6/7: Setting up panel files..."
     setup_panel
 
-    # Step 7: Configure firewall and start
     print_info "Step 7/7: Starting panel..."
     configure_firewall
     start_panel
 
-    # Done!
     print_complete
 }
 
-# Run main function
-main "$@"
+# Show help
+show_help() {
+    print_banner
+    echo ""
+    echo -e "${CYAN}Usage:${NC} $0 <command>"
+    echo ""
+    echo -e "${CYAN}Commands:${NC}"
+    echo -e "  ${YELLOW}install${NC}     Install WireGuard Panel"
+    echo -e "  ${YELLOW}start${NC}       Start the panel"
+    echo -e "  ${YELLOW}stop${NC}        Stop the panel"
+    echo -e "  ${YELLOW}restart${NC}     Restart the panel"
+    echo -e "  ${YELLOW}status${NC}      Show panel status"
+    echo -e "  ${YELLOW}logs${NC}        Show panel logs"
+    echo -e "  ${YELLOW}update${NC}      Update panel (keeps data)"
+    echo -e "  ${YELLOW}uninstall${NC}   Remove panel completely"
+    echo ""
+    echo -e "${CYAN}Examples:${NC}"
+    echo "  $0 install"
+    echo "  $0 start"
+    echo "  $0 update"
+    echo ""
+}
+
+# ==================== MAIN ====================
+
+# Parse command
+case "${1:-}" in
+    install)
+        cmd_install
+        ;;
+    start)
+        cmd_start
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    restart)
+        cmd_restart
+        ;;
+    status)
+        cmd_status
+        ;;
+    logs)
+        cmd_logs
+        ;;
+    update)
+        cmd_update
+        ;;
+    uninstall)
+        cmd_uninstall
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    "")
+        # No argument - show menu
+        print_banner
+        echo ""
+        echo -e "${CYAN}Select an option / یک گزینه انتخاب کنید:${NC}"
+        echo ""
+        echo "  1) Install Panel / نصب پنل"
+        echo "  2) Start Panel / شروع پنل"
+        echo "  3) Stop Panel / توقف پنل"
+        echo "  4) Restart Panel / ریستارت پنل"
+        echo "  5) Show Status / نمایش وضعیت"
+        echo "  6) Show Logs / نمایش لاگ"
+        echo "  7) Update Panel / آپدیت پنل"
+        echo "  8) Uninstall Panel / حذف پنل"
+        echo "  0) Exit / خروج"
+        echo ""
+        read -p "Enter option [0-8]: " option
+        
+        case $option in
+            1) cmd_install ;;
+            2) cmd_start ;;
+            3) cmd_stop ;;
+            4) cmd_restart ;;
+            5) cmd_status ;;
+            6) cmd_logs ;;
+            7) cmd_update ;;
+            8) cmd_uninstall ;;
+            0) exit 0 ;;
+            *) print_error "Invalid option" ;;
+        esac
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac
