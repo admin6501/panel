@@ -18,7 +18,10 @@ import {
   Database,
   RefreshCw,
   Zap,
-  Timer
+  Timer,
+  Filter,
+  Link,
+  Copy
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatBytes, formatDate, formatDateForInput, getStatusColor } from '../utils/helpers';
@@ -32,6 +35,7 @@ const Clients = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
