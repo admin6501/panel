@@ -1689,18 +1689,493 @@ POSTCSS_EOF
 </html>
 HTML_EOF
 
-    # Create React source files - Due to size limitations, will create a simplified version
-    # In production, you would copy the actual frontend files
-    
+    # Create React source files
     print_info "Creating React source files..."
     
-    # Copy all frontend files from /app/frontend to $INSTALL_DIR/frontend
-    if [ -d "/app/frontend/src" ]; then
-        cp -r /app/frontend/src/* $INSTALL_DIR/frontend/src/
-        print_success "Frontend source files copied from /app/frontend"
-    fi
+    create_frontend_source_files
     
     print_success "Frontend files created"
+}
+
+# Create all frontend source files inline
+create_frontend_source_files() {
+    # src/index.js
+    cat > $INSTALL_DIR/frontend/src/index.js << 'INDEXJS_EOF'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+import './i18n/i18n';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+INDEXJS_EOF
+
+    # src/index.css
+    cat > $INSTALL_DIR/frontend/src/index.css << 'INDEXCSS_EOF'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-en: 'Inter', sans-serif;
+  --font-fa: 'Vazirmatn', sans-serif;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[dir="rtl"] body {
+  font-family: var(--font-fa);
+}
+
+[dir="ltr"] body {
+  font-family: var(--font-en);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.3);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: #3b82f6;
+}
+
+.btn-primary {
+  @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200;
+}
+
+.btn-secondary {
+  @apply bg-slate-600 hover:bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200;
+}
+
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200;
+}
+
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+INDEXCSS_EOF
+
+    # src/App.css
+    cat > $INSTALL_DIR/frontend/src/App.css << 'APPCSS_EOF'
+.dark {
+  color-scheme: dark;
+}
+APPCSS_EOF
+
+    # src/App.js
+    cat > $INSTALL_DIR/frontend/src/App.js << 'APPJS_EOF'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Clients from './pages/Clients';
+import Users from './pages/Users';
+import Settings from './pages/Settings';
+import Subscription from './pages/Subscription';
+import './App.css';
+
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole === 'super_admin' && user?.role !== 'super_admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+function AppContent() {
+  const { i18n } = useTranslation();
+  const isRTL = i18n.language === 'fa';
+
+  React.useEffect(() => {
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language, isRTL]);
+
+  return (
+    <Router>
+      <div className={`min-h-screen bg-dark-bg ${isRTL ? 'font-vazir' : 'font-inter'}`}>
+        <Routes>
+          <Route path="/sub/:clientId" element={<Subscription />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="clients" element={<Clients />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+        </Routes>
+        <Toaster
+          position={isRTL ? 'top-left' : 'top-right'}
+          toastOptions={{
+            className: 'bg-dark-card text-dark-text border border-dark-border',
+            duration: 4000,
+          }}
+        />
+      </div>
+    </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+export default App;
+APPJS_EOF
+
+    # src/utils/api.js
+    cat > $INSTALL_DIR/frontend/src/utils/api.js << 'APIJS_EOF'
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+APIJS_EOF
+
+    # src/utils/helpers.js
+    cat > $INSTALL_DIR/frontend/src/utils/helpers.js << 'HELPERSJS_EOF'
+export const formatBytes = (bytes, decimals = 2) => {
+  if (!bytes || bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+export const parseBytes = (value, unit) => {
+  const units = {
+    'Bytes': 1,
+    'KB': 1024,
+    'MB': 1024 * 1024,
+    'GB': 1024 * 1024 * 1024,
+    'TB': 1024 * 1024 * 1024 * 1024
+  };
+  return value * (units[unit] || 1);
+};
+
+export const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fa-IR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+export const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0];
+};
+
+export const getStatusColor = (status) => {
+  const colors = {
+    active: 'bg-green-500',
+    disabled: 'bg-gray-500',
+    expired: 'bg-red-500',
+    data_limit_reached: 'bg-orange-500'
+  };
+  return colors[status] || 'bg-gray-500';
+};
+
+export const getRoleDisplayName = (role, t) => {
+  const roles = {
+    super_admin: t('users.superAdmin'),
+    admin: t('users.admin'),
+    viewer: t('users.viewer')
+  };
+  return roles[role] || role;
+};
+HELPERSJS_EOF
+
+    # src/contexts/AuthContext.js
+    cat > $INSTALL_DIR/frontend/src/contexts/AuthContext.js << 'AUTHCTX_EOF'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../utils/api';
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  useEffect(() => {
+    if (token) {
+      fetchUser();
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
+
+  const fetchUser = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      setUser(response.data);
+    } catch (error) {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (username, password) => {
+    const response = await api.post('/auth/login', { username, password });
+    const newToken = response.data.access_token;
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    await fetchUser();
+    return response.data;
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+  };
+
+  const isAdmin = () => {
+    return user?.role === 'super_admin' || user?.role === 'admin';
+  };
+
+  const isSuperAdmin = () => {
+    return user?.role === 'super_admin';
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      token,
+      loading,
+      login,
+      logout,
+      isAdmin,
+      isSuperAdmin,
+      isAuthenticated: !!user
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+AUTHCTX_EOF
+
+    # src/components/Modal.js
+    cat > $INSTALL_DIR/frontend/src/components/Modal.js << 'MODALJS_EOF'
+import React from 'react';
+import { X } from 'lucide-react';
+
+const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+  if (!isOpen) return null;
+
+  const sizeClasses = {
+    sm: 'max-w-md',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl'
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 modal-backdrop"
+        onClick={onClose}
+      />
+      <div
+        className={`relative bg-dark-card border border-dark-border rounded-xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-hidden animate-fadeIn`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-dark-border">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1 text-dark-muted hover:text-white hover:bg-dark-border rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 overflow-y-auto max-h-[calc(90vh-60px)]">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Modal;
+MODALJS_EOF
+
+    # src/i18n/i18n.js
+    cat > $INSTALL_DIR/frontend/src/i18n/i18n.js << 'I18NJS_EOF'
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import en from './locales/en.json';
+import fa from './locales/fa.json';
+
+const savedLang = localStorage.getItem('language') || 'fa';
+
+i18n
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: { translation: en },
+      fa: { translation: fa }
+    },
+    lng: savedLang,
+    fallbackLng: 'en',
+    interpolation: {
+      escapeValue: false
+    }
+  });
+
+export default i18n;
+I18NJS_EOF
+
+    # Create locale files
+    create_locale_files
+    
+    # Create page components
+    create_page_components
+    
+    # Create Layout component
+    create_layout_component
 }
 
 # Create Docker files
