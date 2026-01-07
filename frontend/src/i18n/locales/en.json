@@ -121,7 +121,10 @@
     "publicKey": "Server Public Key",
     "save": "Save Settings",
     "saveSuccess": "Settings saved successfully",
-    "endpointRequired": "Server endpoint is required to generate client configs"
+    "endpointRequired": "Server endpoint is required to generate client configs",
+    "subscriptionSettings": "Subscription Page Settings",
+    "subscriptionPage": "User Subscription Page",
+    "subscriptionPageDesc": "Users can view their subscription status with a unique link"
   },
   "common": {
     "save": "Save",
