@@ -156,9 +156,20 @@ ask_user_config() {
 install_prerequisites() {
     print_info "Installing prerequisites / نصب پیش‌نیازها..."
 
+    # Wait for any existing apt/dpkg processes
+    wait_for_apt() {
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+            print_warning "Waiting for other package manager to finish... / در انتظار اتمام پکیج منیجر دیگر..."
+            sleep 5
+        done
+    }
+
+    wait_for_apt
+
     case $OS in
         ubuntu|debian)
             apt-get update -y
+            wait_for_apt
             apt-get install -y curl wget git ca-certificates gnupg lsb-release dnsutils openssl python3 python3-pip
             ;;
         centos|rhel|fedora|rocky|almalinux)
