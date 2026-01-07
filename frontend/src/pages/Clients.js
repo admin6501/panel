@@ -15,7 +15,10 @@ import {
   MoreVertical,
   Clock,
   Infinity,
-  Database
+  Database,
+  RefreshCw,
+  Zap,
+  Timer
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatBytes, formatDate, formatDateForInput, getStatusColor } from '../utils/helpers';
@@ -38,7 +41,13 @@ const Clients = () => {
     email: '',
     data_limit: '',
     data_limit_unit: 'GB',
+    expiry_days: '',
     expiry_date: '',
+    start_on_first_connect: false,
+    auto_renew: false,
+    auto_renew_days: '',
+    auto_renew_data_limit: '',
+    auto_renew_data_unit: 'GB',
     note: ''
   });
   const [openMenu, setOpenMenu] = useState(null);
