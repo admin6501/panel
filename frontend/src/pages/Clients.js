@@ -324,16 +324,35 @@ const Clients = () => {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t('common.search')}
-          className={`w-full bg-dark-card border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500`}
-        />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('common.search')}
+            className={`w-full bg-dark-card border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500`}
+          />
+        </div>
+        <div className="relative">
+          <Filter className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={`bg-dark-card border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-8' : 'pl-10 pr-8'} text-white focus:border-primary-500 appearance-none min-w-[180px]`}
+          >
+            {statusFilters.map(filter => (
+              <option key={filter.value} value={filter.value}>{filter.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Clients Count */}
+      <div className="flex items-center gap-2 text-dark-muted text-sm">
+        <span>{t('clients.showing')}: {filteredClients.length} / {clients.length}</span>
       </div>
 
       {/* Clients Grid */}
