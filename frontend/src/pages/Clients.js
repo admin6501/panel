@@ -12,7 +12,10 @@ import {
   Shield,
   Wifi,
   WifiOff,
-  MoreVertical
+  MoreVertical,
+  Clock,
+  Infinity,
+  Database
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatBytes, formatDate, formatDateForInput, getStatusColor } from '../utils/helpers';
