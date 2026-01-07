@@ -1,10 +1,13 @@
 #!/bin/bash
 
 # ===========================================
-# WireGuard Panel Auto Installer
+# WireGuard Panel Auto Installer v2.0
 # ===========================================
-# This script installs WireGuard Panel with Docker
-# Supports Ubuntu/Debian and CentOS/RHEL
+# Features:
+# - Auto-detect and install WireGuard
+# - Optional SSL with Let's Encrypt
+# - Auto-configure endpoint
+# - Docker deployment
 # ===========================================
 
 set -e
@@ -18,14 +21,27 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Variables
+INSTALL_DIR="/opt/wireguard-panel"
+WG_INTERFACE="wg0"
+WG_PORT="51820"
+WG_NETWORK="10.0.0.0/24"
+WG_SERVER_IP="10.0.0.1"
+PANEL_PORT="80"
+PANEL_SSL_PORT="443"
+USE_SSL="n"
+DOMAIN=""
+SERVER_IP=""
+
 # Banner
 print_banner() {
     echo -e "${CYAN}"
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║                                                           ║"
-    echo "║     🛡️  WireGuard Panel Installer  🛡️                     ║"
+    echo "║     🛡️  WireGuard Panel Installer v2.0  🛡️              ║"
     echo "║                                                           ║"
     echo "║     A Modern VPN Management System                        ║"
+    echo "║     با پشتیبانی SSL و نصب خودکار                          ║"
     echo "║                                                           ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -69,18 +85,88 @@ detect_os() {
     print_info "Detected OS: $OS $VERSION"
 }
 
+# Get server IP
+get_server_ip() {
+    SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || curl -s -4 ipinfo.io/ip 2>/dev/null || curl -s -4 icanhazip.com 2>/dev/null)
+    if [ -z "$SERVER_IP" ]; then
+        SERVER_IP=$(hostname -I | awk '{print $1}')
+    fi
+    echo "$SERVER_IP"
+}
+
+# Ask user questions
+ask_questions() {
+    echo ""
+    print_info "Configuration Questions / سوالات پیکربندی"
+    echo ""
+    
+    # Get server IP
+    SERVER_IP=$(get_server_ip)
+    print_info "Server IP detected: $SERVER_IP"
+    echo ""
+    
+    # Ask about domain and SSL
+    echo -e "${YELLOW}Do you want to use a domain with SSL? / آیا می‌خواهید از دامنه با SSL استفاده کنید?${NC}"
+    echo "1) Yes, I have a domain / بله، دامنه دارم"
+    echo "2) No, use IP address / خیر، از IP استفاده کن"
+    read -p "Choose [1-2]: " ssl_choice
+    
+    case $ssl_choice in
+        1)
+            USE_SSL="y"
+            echo ""
+            read -p "Enter your domain (e.g., vpn.example.com): " DOMAIN
+            if [ -z "$DOMAIN" ]; then
+                print_error "Domain cannot be empty"
+                exit 1
+            fi
+            
+            # Validate domain
+            print_info "Validating domain..."
+            DOMAIN_IP=$(dig +short $DOMAIN 2>/dev/null | tail -n1)
+            if [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
+                print_warning "Domain $DOMAIN does not point to this server ($SERVER_IP)"
+                print_warning "Domain resolves to: $DOMAIN_IP"
+                read -p "Continue anyway? (y/n): " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    exit 1
+                fi
+            fi
+            ENDPOINT="$DOMAIN"
+            ;;
+        *)
+            USE_SSL="n"
+            ENDPOINT="$SERVER_IP"
+            ;;
+    esac
+    
+    echo ""
+    print_info "Configuration Summary / خلاصه پیکربندی:"
+    echo "  - Endpoint: $ENDPOINT"
+    echo "  - SSL: $([ "$USE_SSL" = "y" ] && echo "Yes" || echo "No")"
+    echo "  - WireGuard Port: $WG_PORT"
+    echo "  - Panel Port: $([ "$USE_SSL" = "y" ] && echo "$PANEL_SSL_PORT (HTTPS)" || echo "$PANEL_PORT (HTTP)")"
+    echo ""
+    read -p "Continue with installation? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+}
+
 # Check and install prerequisites
 install_prerequisites() {
-    print_info "Checking and installing prerequisites..."
+    print_info "Installing prerequisites..."
 
     case $OS in
         ubuntu|debian)
             apt-get update -y
-            apt-get install -y curl wget git ca-certificates gnupg lsb-release
+            apt-get install -y curl wget git ca-certificates gnupg lsb-release dnsutils openssl
             ;;
         centos|rhel|fedora|rocky|almalinux)
             yum update -y
-            yum install -y curl wget git ca-certificates
+            yum install -y curl wget git ca-certificates bind-utils openssl
             ;;
         *)
             print_error "Unsupported OS: $OS"
@@ -122,9 +208,6 @@ install_docker() {
             apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
             ;;
         centos|rhel|fedora|rocky|almalinux)
-            # Remove old versions
-            yum remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine 2>/dev/null || true
-
             # Install using convenience script
             curl -fsSL https://get.docker.com | sh
             ;;
@@ -135,71 +218,72 @@ install_docker() {
     systemctl enable docker
 
     print_success "Docker installed successfully"
-    docker --version
 }
 
 # Install WireGuard
 install_wireguard() {
     if command -v wg &> /dev/null; then
         print_success "WireGuard is already installed"
-        return
+        wg --version
+    else
+        print_info "Installing WireGuard..."
+
+        case $OS in
+            ubuntu|debian)
+                apt-get install -y wireguard wireguard-tools
+                ;;
+            centos|rhel|rocky|almalinux)
+                if [[ "$VERSION" == "7" ]]; then
+                    yum install -y epel-release elrepo-release
+                    yum install -y kmod-wireguard wireguard-tools
+                else
+                    yum install -y epel-release
+                    yum install -y wireguard-tools
+                fi
+                ;;
+            fedora)
+                dnf install -y wireguard-tools
+                ;;
+        esac
+
+        print_success "WireGuard installed successfully"
     fi
 
-    print_info "Installing WireGuard..."
-
-    case $OS in
-        ubuntu|debian)
-            apt-get install -y wireguard wireguard-tools
-            ;;
-        centos|rhel|rocky|almalinux)
-            if [[ "$VERSION" == "7" ]]; then
-                yum install -y epel-release elrepo-release
-                yum install -y kmod-wireguard wireguard-tools
-            else
-                yum install -y epel-release
-                yum install -y wireguard-tools
-            fi
-            ;;
-        fedora)
-            dnf install -y wireguard-tools
-            ;;
-    esac
-
     # Enable IP forwarding
+    print_info "Enabling IP forwarding..."
+    
+    # Remove existing entries
+    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
+    sed -i '/net.ipv6.conf.all.forwarding/d' /etc/sysctl.conf
+    
+    # Add new entries
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
     echo "net.ipv6.conf.all.forwarding = 1" >> /etc/sysctl.conf
     sysctl -p
 
-    print_success "WireGuard installed successfully"
+    print_success "IP forwarding enabled"
 }
 
 # Setup WireGuard interface
 setup_wireguard() {
-    WG_INTERFACE="wg0"
-    WG_PORT="51820"
-    WG_NETWORK="10.0.0.0/24"
-    WG_SERVER_IP="10.0.0.1"
+    print_info "Setting up WireGuard interface..."
 
     if [ -f "/etc/wireguard/$WG_INTERFACE.conf" ]; then
         print_warning "WireGuard interface $WG_INTERFACE already exists"
-        read -p "Do you want to recreate it? (y/n): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            return
-        fi
-    fi
+        # Get existing keys
+        SERVER_PRIVATE_KEY=$(grep "PrivateKey" /etc/wireguard/$WG_INTERFACE.conf | cut -d'=' -f2 | tr -d ' ')
+        SERVER_PUBLIC_KEY=$(echo $SERVER_PRIVATE_KEY | wg pubkey)
+        print_info "Using existing WireGuard configuration"
+    else
+        # Generate server keys
+        SERVER_PRIVATE_KEY=$(wg genkey)
+        SERVER_PUBLIC_KEY=$(echo $SERVER_PRIVATE_KEY | wg pubkey)
 
-    print_info "Setting up WireGuard interface..."
+        # Get default network interface
+        DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
 
-    # Generate server keys
-    SERVER_PRIVATE_KEY=$(wg genkey)
-    SERVER_PUBLIC_KEY=$(echo $SERVER_PRIVATE_KEY | wg pubkey)
-
-    # Get default network interface
-    DEFAULT_INTERFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
-
-    # Create WireGuard config
-    cat > /etc/wireguard/$WG_INTERFACE.conf << EOF
+        # Create WireGuard config
+        cat > /etc/wireguard/$WG_INTERFACE.conf << EOF
 [Interface]
 Address = $WG_SERVER_IP/24
 ListenPort = $WG_PORT
@@ -208,95 +292,506 @@ PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEP
 PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $DEFAULT_INTERFACE -j MASQUERADE
 EOF
 
-    chmod 600 /etc/wireguard/$WG_INTERFACE.conf
+        chmod 600 /etc/wireguard/$WG_INTERFACE.conf
+        print_success "WireGuard config created"
+    fi
 
-    # Start WireGuard
-    wg-quick up $WG_INTERFACE
-    systemctl enable wg-quick@$WG_INTERFACE
+    # Start WireGuard if not running
+    if ! wg show $WG_INTERFACE &>/dev/null; then
+        wg-quick up $WG_INTERFACE
+        print_success "WireGuard interface started"
+    fi
+    
+    systemctl enable wg-quick@$WG_INTERFACE 2>/dev/null || true
 
-    print_success "WireGuard interface $WG_INTERFACE created"
+    print_success "WireGuard interface $WG_INTERFACE is ready"
     print_info "Server Public Key: $SERVER_PUBLIC_KEY"
 }
 
-# Clone and setup the panel
-setup_panel() {
-    INSTALL_DIR="/opt/wireguard-panel"
+# Install SSL certificate
+install_ssl() {
+    if [ "$USE_SSL" != "y" ]; then
+        return
+    fi
 
+    print_info "Installing SSL certificate for $DOMAIN..."
+
+    # Install certbot
+    case $OS in
+        ubuntu|debian)
+            apt-get install -y certbot
+            ;;
+        centos|rhel|rocky|almalinux|fedora)
+            yum install -y certbot
+            ;;
+    esac
+
+    # Stop any service on port 80
+    systemctl stop nginx 2>/dev/null || true
+    docker stop wireguard-panel-frontend 2>/dev/null || true
+
+    # Get certificate
+    certbot certonly --standalone -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --http-01-port 80
+
+    if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+        print_success "SSL certificate obtained successfully"
+        
+        # Copy certificates to panel directory
+        mkdir -p $INSTALL_DIR/ssl
+        cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $INSTALL_DIR/ssl/
+        cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $INSTALL_DIR/ssl/
+        chmod 600 $INSTALL_DIR/ssl/*.pem
+    else
+        print_error "Failed to obtain SSL certificate"
+        USE_SSL="n"
+    fi
+}
+
+# Setup panel files
+setup_panel() {
     print_info "Setting up WireGuard Panel..."
 
-    # Create directory
     mkdir -p $INSTALL_DIR
     cd $INSTALL_DIR
-
-    # If we're running from the source directory, copy files
-    if [ -f "$(dirname $0)/docker/docker-compose.yml" ]; then
-        cp -r $(dirname $0)/* $INSTALL_DIR/
-    else
-        # Clone from repository (if available)
-        print_info "Downloading panel files..."
-        # For now, we'll create the necessary files
-        mkdir -p backend frontend docker
-    fi
 
     # Generate JWT secret
     JWT_SECRET=$(openssl rand -hex 32)
 
     # Create .env file
-    cat > $INSTALL_DIR/docker/.env << EOF
+    cat > $INSTALL_DIR/.env << EOF
 JWT_SECRET=$JWT_SECRET
-PANEL_PORT=80
+PANEL_PORT=$PANEL_PORT
+PANEL_SSL_PORT=$PANEL_SSL_PORT
+DOMAIN=$DOMAIN
+USE_SSL=$USE_SSL
+WG_ENDPOINT=$ENDPOINT
+WG_PORT=$WG_PORT
+WG_NETWORK=$WG_NETWORK
+SERVER_PUBLIC_KEY=$SERVER_PUBLIC_KEY
+SERVER_PRIVATE_KEY=$SERVER_PRIVATE_KEY
 EOF
 
-    print_success "Panel files setup complete"
+    # Create nginx config based on SSL choice
+    if [ "$USE_SSL" = "y" ]; then
+        create_nginx_ssl_config
+    else
+        create_nginx_config
+    fi
+
+    # Create docker-compose.yml
+    create_docker_compose
+
+    # Create backend Dockerfile
+    create_backend_dockerfile
+
+    # Create frontend Dockerfile
+    create_frontend_dockerfile
+
+    # Create backend files
+    create_backend_files
+
+    # Create frontend files
+    create_frontend_files
+
+    print_success "Panel files created"
 }
 
-# Build and start containers
+# Create nginx config without SSL
+create_nginx_config() {
+    cat > $INSTALL_DIR/nginx.conf << 'EOF'
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    location /api {
+        proxy_pass http://backend:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+EOF
+}
+
+# Create nginx config with SSL
+create_nginx_ssl_config() {
+    cat > $INSTALL_DIR/nginx.conf << EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    return 301 https://\$server_name\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $DOMAIN;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    location /api {
+        proxy_pass http://backend:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)\$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+EOF
+}
+
+# Create docker-compose.yml
+create_docker_compose() {
+    if [ "$USE_SSL" = "y" ]; then
+        cat > $INSTALL_DIR/docker-compose.yml << EOF
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: wireguard-panel-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - wireguard-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: wireguard-panel-backend
+    restart: unless-stopped
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=wireguard_panel
+      - JWT_SECRET=${JWT_SECRET}
+      - WG_INTERFACE=$WG_INTERFACE
+      - WG_PORT=$WG_PORT
+      - WG_NETWORK=$WG_NETWORK
+      - WG_DNS=1.1.1.1,8.8.8.8
+      - DEFAULT_ENDPOINT=$ENDPOINT
+      - SERVER_PUBLIC_KEY=$SERVER_PUBLIC_KEY
+      - SERVER_PRIVATE_KEY=$SERVER_PRIVATE_KEY
+    volumes:
+      - /etc/wireguard:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - wireguard-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: wireguard-panel-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - wireguard-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  wireguard-network:
+    driver: bridge
+EOF
+    else
+        cat > $INSTALL_DIR/docker-compose.yml << EOF
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: wireguard-panel-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - wireguard-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: wireguard-panel-backend
+    restart: unless-stopped
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=wireguard_panel
+      - JWT_SECRET=${JWT_SECRET}
+      - WG_INTERFACE=$WG_INTERFACE
+      - WG_PORT=$WG_PORT
+      - WG_NETWORK=$WG_NETWORK
+      - WG_DNS=1.1.1.1,8.8.8.8
+      - DEFAULT_ENDPOINT=$ENDPOINT
+      - SERVER_PUBLIC_KEY=$SERVER_PUBLIC_KEY
+      - SERVER_PRIVATE_KEY=$SERVER_PRIVATE_KEY
+    volumes:
+      - /etc/wireguard:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - wireguard-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: wireguard-panel-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - wireguard-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  wireguard-network:
+    driver: bridge
+EOF
+    fi
+}
+
+# Create Backend Dockerfile
+create_backend_dockerfile() {
+    cat > $INSTALL_DIR/Dockerfile.backend << 'EOF'
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    wireguard-tools \
+    iproute2 \
+    iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ .
+
+EXPOSE 8001
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]
+EOF
+}
+
+# Create Frontend Dockerfile
+create_frontend_dockerfile() {
+    cat > $INSTALL_DIR/Dockerfile.frontend << 'EOF'
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+COPY frontend/package.json ./
+
+RUN yarn install
+
+COPY frontend/ .
+
+RUN yarn build
+
+FROM nginx:alpine
+
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80 443
+
+CMD ["nginx", "-g", "daemon off;"]
+EOF
+}
+
+# Create backend files (simplified - copy from repo or create minimal)
+create_backend_files() {
+    mkdir -p $INSTALL_DIR/backend
+    
+    # Check if we're running from repo
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    if [ -d "$SCRIPT_DIR/backend" ]; then
+        cp -r $SCRIPT_DIR/backend/* $INSTALL_DIR/backend/
+    else
+        # Create minimal backend - in production, download from repo
+        print_warning "Backend files not found. Please copy them manually or clone from repository."
+    fi
+}
+
+# Create frontend files
+create_frontend_files() {
+    mkdir -p $INSTALL_DIR/frontend
+    
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    if [ -d "$SCRIPT_DIR/frontend" ]; then
+        cp -r $SCRIPT_DIR/frontend/* $INSTALL_DIR/frontend/
+        
+        # Update API URL in frontend
+        echo "REACT_APP_BACKEND_URL=/api" > $INSTALL_DIR/frontend/.env
+    else
+        print_warning "Frontend files not found. Please copy them manually or clone from repository."
+    fi
+}
+
+# Start the panel
 start_panel() {
     print_info "Building and starting containers..."
 
-    cd /opt/wireguard-panel/docker
+    cd $INSTALL_DIR
 
     # Build and start
     docker compose up -d --build
 
-    print_success "Containers started successfully"
+    # Wait for services
+    print_info "Waiting for services to start..."
+    sleep 10
+
+    # Check if running
+    if docker ps | grep -q wireguard-panel-frontend; then
+        print_success "Panel is running!"
+    else
+        print_error "Failed to start panel. Check logs with: docker compose logs"
+    fi
 }
 
-# Get server IP
-get_server_ip() {
-    SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "your-server-ip")
-    echo $SERVER_IP
+# Configure firewall
+configure_firewall() {
+    print_info "Configuring firewall..."
+
+    # UFW (Ubuntu/Debian)
+    if command -v ufw &> /dev/null; then
+        ufw allow $WG_PORT/udp
+        ufw allow 80/tcp
+        [ "$USE_SSL" = "y" ] && ufw allow 443/tcp
+        print_success "UFW rules added"
+    fi
+
+    # Firewalld (CentOS/RHEL)
+    if command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --permanent --add-port=$WG_PORT/udp
+        firewall-cmd --permanent --add-port=80/tcp
+        [ "$USE_SSL" = "y" ] && firewall-cmd --permanent --add-port=443/tcp
+        firewall-cmd --reload
+        print_success "Firewalld rules added"
+    fi
 }
 
-# Print installation complete message
+# Print completion message
 print_complete() {
-    SERVER_IP=$(get_server_ip)
-    
     echo ""
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
-    echo -e "${GREEN}║     ✅  Installation Complete!                            ║${NC}"
+    echo -e "${GREEN}║     ✅  Installation Complete! / نصب کامل شد!            ║${NC}"
     echo -e "${GREEN}║                                                           ║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}Panel URL:${NC} http://$SERVER_IP"
-    echo -e "${CYAN}Default Login:${NC}"
+    
+    if [ "$USE_SSL" = "y" ]; then
+        echo -e "${CYAN}Panel URL:${NC} https://$DOMAIN"
+    else
+        echo -e "${CYAN}Panel URL:${NC} http://$SERVER_IP"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}Default Login / اطلاعات ورود:${NC}"
     echo -e "   Username: ${YELLOW}admin${NC}"
     echo -e "   Password: ${YELLOW}admin${NC}"
     echo ""
     echo -e "${RED}⚠️  IMPORTANT: Please change the default password immediately!${NC}"
+    echo -e "${RED}⚠️  مهم: لطفاً رمز عبور پیش‌فرض را فوراً تغییر دهید!${NC}"
     echo ""
-    echo -e "${CYAN}Useful Commands:${NC}"
-    echo -e "   View logs:     ${YELLOW}cd /opt/wireguard-panel/docker && docker compose logs -f${NC}"
-    echo -e "   Restart:       ${YELLOW}cd /opt/wireguard-panel/docker && docker compose restart${NC}"
-    echo -e "   Stop:          ${YELLOW}cd /opt/wireguard-panel/docker && docker compose down${NC}"
-    echo -e "   Update:        ${YELLOW}cd /opt/wireguard-panel/docker && docker compose pull && docker compose up -d${NC}"
+    echo -e "${CYAN}WireGuard Endpoint:${NC} $ENDPOINT:$WG_PORT"
+    echo -e "${CYAN}WireGuard Server Public Key:${NC}"
+    echo "   $SERVER_PUBLIC_KEY"
     echo ""
-    echo -e "${CYAN}WireGuard Status:${NC}"
-    echo -e "   Check status:  ${YELLOW}wg show${NC}"
-    echo -e "   Start:         ${YELLOW}wg-quick up wg0${NC}"
-    echo -e "   Stop:          ${YELLOW}wg-quick down wg0${NC}"
+    echo -e "${CYAN}Useful Commands / دستورات مفید:${NC}"
+    echo -e "   View logs:     ${YELLOW}cd $INSTALL_DIR && docker compose logs -f${NC}"
+    echo -e "   Restart:       ${YELLOW}cd $INSTALL_DIR && docker compose restart${NC}"
+    echo -e "   Stop:          ${YELLOW}cd $INSTALL_DIR && docker compose down${NC}"
+    echo -e "   WG Status:     ${YELLOW}wg show${NC}"
     echo ""
+    
+    if [ "$USE_SSL" = "y" ]; then
+        echo -e "${CYAN}SSL Certificate Renewal:${NC}"
+        echo -e "   ${YELLOW}certbot renew${NC}"
+        echo ""
+    fi
 }
 
 # Main installation flow
@@ -304,30 +799,41 @@ main() {
     print_banner
     check_root
     detect_os
+    
+    # Ask configuration questions
+    ask_questions
 
     echo ""
     print_info "Starting installation..."
     echo ""
 
     # Step 1: Install prerequisites
-    print_info "Step 1/5: Installing prerequisites..."
+    print_info "Step 1/7: Installing prerequisites..."
     install_prerequisites
 
     # Step 2: Install Docker
-    print_info "Step 2/5: Installing Docker..."
+    print_info "Step 2/7: Installing Docker..."
     install_docker
 
     # Step 3: Install WireGuard
-    print_info "Step 3/5: Installing WireGuard..."
+    print_info "Step 3/7: Installing WireGuard..."
     install_wireguard
 
     # Step 4: Setup WireGuard interface
-    print_info "Step 4/5: Setting up WireGuard interface..."
+    print_info "Step 4/7: Setting up WireGuard interface..."
     setup_wireguard
 
-    # Step 5: Setup and start panel
-    print_info "Step 5/5: Setting up and starting panel..."
+    # Step 5: Install SSL (if requested)
+    print_info "Step 5/7: Setting up SSL..."
+    install_ssl
+
+    # Step 6: Setup panel files
+    print_info "Step 6/7: Setting up panel files..."
     setup_panel
+
+    # Step 7: Configure firewall and start
+    print_info "Step 7/7: Starting panel..."
+    configure_firewall
     start_panel
 
     # Done!
