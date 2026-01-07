@@ -119,6 +119,26 @@ const Clients = () => {
     }
   };
 
+  const handleResetExpiry = async (client, days = 30) => {
+    try {
+      await api.post(`/clients/${client.id}/reset-expiry?days=${days}`);
+      toast.success(t('clients.expiryExtended'));
+      fetchClients();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    }
+  };
+
+  const handleRemoveExpiry = async (client) => {
+    try {
+      await api.post(`/clients/${client.id}/remove-expiry`);
+      toast.success(t('common.success'));
+      fetchClients();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    }
+  };
+
   const handleDownloadConfig = async (client) => {
     try {
       const response = await api.get(`/clients/${client.id}/config`, {
