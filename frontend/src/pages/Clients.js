@@ -296,9 +296,6 @@ const Clients = () => {
     if (statusFilter === 'waiting') return client.start_on_first_connect && !client.timer_started;
     return client.status === statusFilter;
   });
-    client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.address?.includes(searchQuery)
-  );
 
   if (loading) {
     return (
