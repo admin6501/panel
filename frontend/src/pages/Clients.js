@@ -214,6 +214,12 @@ const Clients = () => {
     }
   };
 
+  const handleCopySubLink = (client) => {
+    const subLink = `${window.location.origin}/sub/${client.id}`;
+    navigator.clipboard.writeText(subLink);
+    toast.success(t('clients.subLinkCopied'));
+  };
+
   const handleEdit = (client) => {
     setSelectedClient(client);
     setFormData({
@@ -266,8 +272,30 @@ const Clients = () => {
     return labels[status] || status;
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const statusFilters = [
+    { value: 'all', label: t('clients.filterAll') },
+    { value: 'active', label: t('clients.active') },
+    { value: 'disabled', label: t('clients.disabled') },
+    { value: 'expired', label: t('clients.expired') },
+    { value: 'data_limit_reached', label: t('clients.dataLimitReached') },
+    { value: 'online', label: t('clients.online') },
+    { value: 'waiting', label: t('clients.waitingForConnect') }
+  ];
+
+  const filteredClients = clients.filter(client => {
+    // Search filter
+    const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.address?.includes(searchQuery);
+    
+    if (!matchesSearch) return false;
+    
+    // Status filter
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'online') return client.is_online;
+    if (statusFilter === 'waiting') return client.start_on_first_connect && !client.timer_started;
+    return client.status === statusFilter;
+  });
     client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.address?.includes(searchQuery)
   );
