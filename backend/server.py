@@ -625,6 +625,65 @@ async def remove_client_expiry(client_id: str, current_user: TokenData = Depends
     return {"message": "Expiry date removed successfully"}
 
 
+@app.post("/api/clients/{client_id}/reset-timer")
+async def reset_client_timer(client_id: str, current_user: TokenData = Depends(require_admin)):
+    """Reset client timer to original duration (expiry_days)"""
+    client = clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Get original expiry_days or default to 30
+    expiry_days = client.get("expiry_days", 30)
+    new_expiry = datetime.utcnow() + timedelta(days=expiry_days)
+    
+    update_data = {
+        "expiry_date": new_expiry,
+        "data_used": 0,
+        "timer_started": True,
+        "first_connection_at": datetime.utcnow()
+    }
+    
+    clients_collection.update_one(
+        {"id": client_id},
+        {"$set": update_data}
+    )
+    return {
+        "message": f"Timer reset to {expiry_days} days",
+        "new_expiry": new_expiry.isoformat(),
+        "expiry_days": expiry_days
+    }
+
+
+@app.post("/api/clients/{client_id}/full-reset")
+async def full_reset_client(client_id: str, current_user: TokenData = Depends(require_admin)):
+    """Full reset: reset data, timer, and set to wait for first connection"""
+    client = clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    update_data = {
+        "data_used": 0,
+        "first_connection_at": None,
+        "timer_started": False,
+        "renew_count": 0
+    }
+    
+    # If start_on_first_connect is enabled, clear expiry_date
+    if client.get("start_on_first_connect"):
+        update_data["expiry_date"] = None
+    else:
+        # Reset to original duration
+        expiry_days = client.get("expiry_days", 30)
+        if expiry_days:
+            update_data["expiry_date"] = datetime.utcnow() + timedelta(days=expiry_days)
+    
+    clients_collection.update_one(
+        {"id": client_id},
+        {"$set": update_data}
+    )
+    return {"message": "Client fully reset successfully"}
+
+
 # ==================== SETTINGS ROUTES ====================
 
 @app.get("/api/settings")
