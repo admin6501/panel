@@ -312,7 +312,8 @@ async def create_client(client: ClientCreate, current_user: TokenData = Depends(
     response["created_at"] = response["created_at"].isoformat()
     if response.get("expiry_date"):
         response["expiry_date"] = response["expiry_date"].isoformat()
-    del response["_id"] if "_id" in response else None
+    if "_id" in response:
+        del response["_id"]
     
     return response
 
