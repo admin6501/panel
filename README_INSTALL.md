@@ -1,123 +1,64 @@
-# 🛡️ WireGuard Panel - Auto Install Script
+# 🛡️ WireGuard Panel - Auto Install Script v3.0
 
 [English](#english) | [فارسی](#فارسی)
 
 ---
 
-## English
-
-### Quick Install
-
-Run this single command on your server:
-
-```bash
-sudo bash setup.sh
-```
-
-### What it does:
-
-1. **Asks for configuration:**
-   - Panel admin username (default: admin)
-   - Panel admin password (default: admin)
-   - Panel web port (default: 80)
-
-2. **Installs prerequisites:**
-   - Docker & Docker Compose
-   - WireGuard
-   - Required system packages
-
-3. **Creates all files:**
-   - Backend (Python FastAPI)
-   - Frontend (React)
-   - Docker configurations
-   - Nginx config
-
-4. **Sets up WireGuard:**
-   - Creates wg0 interface
-   - Configures IP forwarding
-   - Generates server keys
-
-5. **Starts the panel:**
-   - MongoDB database
-   - Backend API
-   - Frontend web interface
-
-### After Installation
-
-Access the panel at: `http://YOUR_SERVER_IP:PORT`
-
-### Management Commands
-
-```bash
-cd /opt/wireguard-panel
-
-# Start panel
-docker compose up -d
-
-# Stop panel
-docker compose down
-
-# Restart panel
-docker compose restart
-
-# View logs
-docker compose logs -f
-
-# Update panel
-docker compose up -d --build
-```
-
-### Requirements
-
-- Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky Linux 8+
-- Root access (sudo)
-- Ports: 80 (web), 51820/UDP (WireGuard)
-
----
-
 ## فارسی
 
-### نصب سریع
+### نصب سریع با یک دستور
 
-این دستور را روی سرور خود اجرا کنید:
+این اسکریپت **همه چیز** را خودش از صفر ایجاد می‌کند و نصب می‌کند:
 
+```bash
+# دانلود و اجرا
+wget -O setup.sh https://raw.githubusercontent.com/YOUR_REPO/setup.sh
+chmod +x setup.sh
+sudo bash setup.sh
+```
+
+یا اگر فایل را دارید:
 ```bash
 sudo bash setup.sh
 ```
 
-### این اسکریپت چه کاری انجام می‌دهد:
+### در حین نصب از شما می‌پرسد:
 
-1. **پرسش تنظیمات:**
-   - نام کاربری ادمین پنل (پیش‌فرض: admin)
-   - رمز عبور ادمین پنل (پیش‌فرض: admin)
-   - پورت وب پنل (پیش‌فرض: 80)
+1. **نام کاربری ادمین** - برای ورود به پنل (پیش‌فرض: admin)
+2. **رمز عبور ادمین** - رمز ورود به پنل (پیش‌فرض: admin)
+3. **پورت پنل** - پورت وب پنل (پیش‌فرض: 80)
 
-2. **نصب پیش‌نیازها:**
-   - Docker و Docker Compose
-   - WireGuard
-   - بسته‌های سیستمی مورد نیاز
+### این اسکریپت چه کارهایی انجام می‌دهد:
 
-3. **ایجاد همه فایل‌ها:**
-   - بک‌اند (Python FastAPI)
-   - فرانت‌اند (React)
-   - تنظیمات Docker
-   - تنظیمات Nginx
+✅ **نصب پیش‌نیازها:**
+- Docker و Docker Compose
+- WireGuard
+- بسته‌های سیستمی مورد نیاز
 
-4. **راه‌اندازی WireGuard:**
-   - ایجاد اینترفیس wg0
-   - پیکربندی IP forwarding
-   - تولید کلیدهای سرور
+✅ **ایجاد همه فایل‌ها از صفر:**
+- بک‌اند کامل (Python FastAPI)
+- فرانت‌اند کامل (React + TailwindCSS)
+- تنظیمات Docker
+- تنظیمات Nginx
+- فایل‌های زبان فارسی و انگلیسی
 
-5. **شروع پنل:**
-   - دیتابیس MongoDB
-   - API بک‌اند
-   - رابط کاربری وب
+✅ **راه‌اندازی خودکار:**
+- اینترفیس WireGuard (wg0)
+- IP Forwarding
+- فایروال
 
-### بعد از نصب
+✅ **شروع سرویس‌ها:**
+- MongoDB
+- Backend API
+- Frontend Web
 
-به پنل دسترسی پیدا کنید در: `http://IP_سرور:پورت`
+### بعد از نصب:
 
-### دستورات مدیریت
+📌 **آدرس پنل:** `http://IP_سرور:پورت`
+
+📌 **اطلاعات ورود:** یوزرنیم و پسوردی که در حین نصب وارد کردید
+
+### دستورات مدیریت:
 
 ```bash
 cd /opt/wireguard-panel
@@ -138,18 +79,112 @@ docker compose logs -f
 docker compose up -d --build
 ```
 
-### نیازمندی‌ها
+### نیازمندی‌ها:
 
-- Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky Linux 8+
+- سیستم‌عامل: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky Linux 8+
 - دسترسی root (sudo)
 - پورت‌ها: 80 (وب)، 51820/UDP (WireGuard)
+- حداقل 1GB RAM
 
 ---
 
-## 📝 License
+## English
+
+### Quick One-Command Install
+
+This script creates **everything** from scratch and installs:
+
+```bash
+# Download and run
+wget -O setup.sh https://raw.githubusercontent.com/YOUR_REPO/setup.sh
+chmod +x setup.sh
+sudo bash setup.sh
+```
+
+Or if you have the file:
+```bash
+sudo bash setup.sh
+```
+
+### During installation, you'll be asked for:
+
+1. **Admin username** - for panel login (default: admin)
+2. **Admin password** - panel password (default: admin)
+3. **Panel port** - web panel port (default: 80)
+
+### What this script does:
+
+✅ **Installs prerequisites:**
+- Docker & Docker Compose
+- WireGuard
+- Required system packages
+
+✅ **Creates all files from scratch:**
+- Complete Backend (Python FastAPI)
+- Complete Frontend (React + TailwindCSS)
+- Docker configurations
+- Nginx configuration
+- Persian & English language files
+
+✅ **Auto-configures:**
+- WireGuard interface (wg0)
+- IP Forwarding
+- Firewall rules
+
+✅ **Starts services:**
+- MongoDB database
+- Backend API
+- Frontend Web
+
+### After installation:
+
+📌 **Panel URL:** `http://YOUR_SERVER_IP:PORT`
+
+📌 **Login:** Use the username and password you entered during installation
+
+### Management commands:
+
+```bash
+cd /opt/wireguard-panel
+
+# Start panel
+docker compose up -d
+
+# Stop panel
+docker compose down
+
+# Restart panel
+docker compose restart
+
+# View logs
+docker compose logs -f
+
+# Update panel
+docker compose up -d --build
+```
+
+### Requirements:
+
+- OS: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky Linux 8+
+- Root access (sudo)
+- Ports: 80 (web), 51820/UDP (WireGuard)
+- Minimum 1GB RAM
+
+---
+
+## 📝 Features
+
+- ✅ Fully self-contained - no external file downloads
+- ✅ Interactive installation with user input
+- ✅ Persian & English interface
+- ✅ Dark modern UI
+- ✅ Client management with QR codes
+- ✅ Auto-renewal support
+- ✅ Subscription page for users
+- ✅ Data & time limits
+- ✅ Start timer on first connection
+- ✅ Multi-user support with roles
+
+## 📄 License
 
 MIT License - Free to use and modify.
-
-## 🤝 Support
-
-For issues and feature requests, please open an issue on GitHub.
