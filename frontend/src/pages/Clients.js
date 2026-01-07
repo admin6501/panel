@@ -217,7 +217,13 @@ const Clients = () => {
       email: client.email || '',
       data_limit: client.data_limit ? (client.data_limit / (1024 * 1024 * 1024)).toFixed(2) : '',
       data_limit_unit: 'GB',
+      expiry_days: client.expiry_days || '',
       expiry_date: formatDateForInput(client.expiry_date),
+      start_on_first_connect: client.start_on_first_connect || false,
+      auto_renew: client.auto_renew || false,
+      auto_renew_days: client.auto_renew_days || '',
+      auto_renew_data_limit: client.auto_renew_data_limit ? (client.auto_renew_data_limit / (1024 * 1024 * 1024)).toFixed(2) : '',
+      auto_renew_data_unit: 'GB',
       note: client.note || ''
     });
     setShowModal(true);
@@ -230,7 +236,13 @@ const Clients = () => {
       email: '',
       data_limit: '',
       data_limit_unit: 'GB',
+      expiry_days: '',
       expiry_date: '',
+      start_on_first_connect: false,
+      auto_renew: false,
+      auto_renew_days: '',
+      auto_renew_data_limit: '',
+      auto_renew_data_unit: 'GB',
       note: ''
     });
   };
