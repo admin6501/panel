@@ -1139,20 +1139,27 @@ install_panel() {
         print_warning "Panel already installed!"
         echo -e "${YELLOW}Reinstall? (y/n)${NC}"
         read -r REPLY
-        [[ ! "$REPLY" =~ ^[Yy]$ ]] && return 0
-        cd $INSTALL_DIR && docker compose down -v 2>/dev/null || true
+        if [[ ! "$REPLY" =~ ^[Yy]$ ]] && [[ -n "$REPLY" ]]; then
+            return 0
+        fi
+        print_info "Removing old installation..."
+        cd $INSTALL_DIR
+        docker compose down -v 2>/dev/null || true
         rm -rf $INSTALL_DIR
     fi
     
     detect_os
     ask_user_config
-    install_prerequisites
-    install_docker
-    install_wireguard
-    setup_wireguard
-    create_project_files
+    
+    print_info "Starting installation..."
+    
+    install_prerequisites || { print_error "Failed to install prerequisites"; return 1; }
+    install_docker || { print_error "Failed to install docker"; return 1; }
+    install_wireguard || { print_error "Failed to install wireguard"; return 1; }
+    setup_wireguard || { print_error "Failed to setup wireguard"; return 1; }
+    create_project_files || { print_error "Failed to create files"; return 1; }
     configure_firewall
-    build_and_start
+    build_and_start || { print_error "Failed to start"; return 1; }
     print_complete
 }
 
