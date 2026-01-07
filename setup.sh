@@ -3036,8 +3036,8 @@ server {
 }
 NGINX_EOF
 
-    # docker-compose.yml
-    cat > $INSTALL_DIR/docker-compose.yml << COMPOSE_EOF
+    # docker-compose.yml - Using direct values instead of variables
+    cat > $INSTALL_DIR/docker-compose.yml << EOF
 version: '3.8'
 
 services:
@@ -3065,7 +3065,7 @@ services:
     environment:
       - MONGO_URL=mongodb://mongodb:27017
       - DB_NAME=wireguard_panel
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=$JWT_SECRET
       - WG_INTERFACE=$WG_INTERFACE
       - WG_PORT=$WG_PORT
       - WG_NETWORK=$WG_NETWORK
@@ -3096,7 +3096,7 @@ services:
     container_name: wireguard-panel-frontend
     restart: unless-stopped
     ports:
-      - "${PANEL_PORT}:80"
+      - "$PANEL_PORT:80"
     depends_on:
       - backend
     networks:
@@ -3108,7 +3108,25 @@ volumes:
 networks:
   wireguard-network:
     driver: bridge
-COMPOSE_EOF
+EOF
+
+    # Also create a .env file for docker-compose
+    cat > $INSTALL_DIR/.docker.env << EOF
+JWT_SECRET=$JWT_SECRET
+PANEL_USERNAME=$PANEL_USERNAME
+PANEL_PASSWORD=$PANEL_PASSWORD
+PANEL_PORT=$PANEL_PORT
+WG_INTERFACE=$WG_INTERFACE
+WG_PORT=$WG_PORT
+WG_NETWORK=$WG_NETWORK
+SERVER_IP=$SERVER_IP
+SERVER_PUBLIC_KEY=$SERVER_PUBLIC_KEY
+SERVER_PRIVATE_KEY=$SERVER_PRIVATE_KEY
+EOF
+
+    print_info "Docker compose created with:"
+    print_info "  Username: $PANEL_USERNAME"
+    print_info "  Port: $PANEL_PORT"
 
     # Dockerfile.backend
     cat > $INSTALL_DIR/Dockerfile.backend << 'BACKEND_DOCKERFILE_EOF'
