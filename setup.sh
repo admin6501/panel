@@ -238,8 +238,17 @@ install_wireguard() {
     else
         print_info "Installing WireGuard / نصب وایرگارد..."
 
+        # Wait for apt lock
+        wait_for_apt() {
+            while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+                print_warning "Waiting for package manager... / در انتظار پکیج منیجر..."
+                sleep 5
+            done
+        }
+
         case $OS in
             ubuntu|debian)
+                wait_for_apt
                 apt-get install -y wireguard wireguard-tools
                 ;;
             centos|rhel|rocky|almalinux)
