@@ -158,6 +158,27 @@ const Clients = () => {
     }
   };
 
+  const handleResetTimer = async (client) => {
+    try {
+      await api.post(`/clients/${client.id}/reset-timer`);
+      toast.success(t('clients.timerReset'));
+      fetchClients();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    }
+  };
+
+  const handleFullReset = async (client) => {
+    if (!window.confirm(t('clients.confirmFullReset'))) return;
+    try {
+      await api.post(`/clients/${client.id}/full-reset`);
+      toast.success(t('clients.fullResetSuccess'));
+      fetchClients();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    }
+  };
+
   const handleDownloadConfig = async (client) => {
     try {
       const response = await api.get(`/clients/${client.id}/config`, {
