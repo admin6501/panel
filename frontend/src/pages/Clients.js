@@ -332,8 +332,22 @@ const Clients = () => {
                             onClick={() => { handleResetData(client); setOpenMenu(null); }}
                             className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
                           >
-                            <RotateCcw className="w-4 h-4" />
+                            <Database className="w-4 h-4" />
                             {t('clients.resetData')}
+                          </button>
+                          <button
+                            onClick={() => { handleResetExpiry(client, 30); setOpenMenu(null); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
+                          >
+                            <Clock className="w-4 h-4" />
+                            {t('clients.extendExpiry')}
+                          </button>
+                          <button
+                            onClick={() => { handleRemoveExpiry(client); setOpenMenu(null); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
+                          >
+                            <Infinity className="w-4 h-4" />
+                            {t('clients.removeExpiry')}
                           </button>
                           <button
                             onClick={() => { handleDelete(client); setOpenMenu(null); }}
