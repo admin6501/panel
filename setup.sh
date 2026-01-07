@@ -189,17 +189,22 @@ ask_user_config() {
     echo ""
     
     echo -e "${YELLOW}Admin username / نام کاربری:${NC}"
-    read -p "Username [admin]: " input_username
-    [ -n "$input_username" ] && PANEL_USERNAME="$input_username"
+    read -r -p "Username [admin]: " input_username
+    if [ -n "$input_username" ]; then
+        PANEL_USERNAME="$input_username"
+    fi
     
     echo -e "${YELLOW}Admin password / رمز عبور:${NC}"
-    read -s -p "Password [admin]: " input_password
-    echo ""
-    [ -n "$input_password" ] && PANEL_PASSWORD="$input_password"
+    read -r -p "Password [admin]: " input_password
+    if [ -n "$input_password" ]; then
+        PANEL_PASSWORD="$input_password"
+    fi
     
     echo -e "${YELLOW}Panel port / پورت پنل:${NC}"
-    read -p "Port [80]: " input_port
-    [ -n "$input_port" ] && PANEL_PORT="$input_port"
+    read -r -p "Port [80]: " input_port
+    if [ -n "$input_port" ]; then
+        PANEL_PORT="$input_port"
+    fi
     
     SERVER_IP=$(get_server_ip)
     echo ""
@@ -210,7 +215,11 @@ ask_user_config() {
     
     echo -e "${YELLOW}Press Enter to continue or 'n' to cancel${NC}"
     read -r REPLY
-    [[ "$REPLY" =~ ^[Nn]$ ]] && exit 0
+    if [[ "$REPLY" =~ ^[Nn]$ ]]; then
+        print_info "Installation cancelled."
+        return 1
+    fi
+    return 0
 }
 
 install_prerequisites() {
