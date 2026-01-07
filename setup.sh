@@ -2211,30 +2211,553 @@ ENJSON_EOF
 FAJSON_EOF
 }
 
-# Create page components (simplified versions for the installer)
+# Create all page components inline
 create_page_components() {
-    # Login.js - copy from original or create inline
-    # For brevity, using a simplified approach that will be overwritten by full version
-    
-    # Create simplified pages that work
-    echo "Creating page components..."
-    
-    # These will be created as embedded heredocs
-    # Due to shell script size limits, we'll copy from existing source if available
-    
-    if [ -d "/app/frontend/src/pages" ]; then
-        cp /app/frontend/src/pages/*.js $INSTALL_DIR/frontend/src/pages/ 2>/dev/null || true
-    fi
-    
-    if [ -d "/app/frontend/src/components" ]; then
-        cp /app/frontend/src/components/*.js $INSTALL_DIR/frontend/src/components/ 2>/dev/null || true
-    fi
+    echo "Creating page components inline..."
+
+    # Login.js
+    cat > $INSTALL_DIR/frontend/src/pages/Login.js << 'LOGINJS_EOF'
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { Shield, User, Lock, AlertCircle, Globe } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+const Login = () => {
+  const { t, i18n } = useTranslation();
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const isRTL = i18n.language === 'fa';
+
+  React.useEffect(() => {
+    if (isAuthenticated) navigate('/');
+  }, [isAuthenticated, navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await login(username, password);
+      toast.success(t('common.success'));
+      navigate('/');
+    } catch (err) {
+      setError(t('login.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'fa' ? 'en' : 'fa';
+    i18n.changeLanguage(newLang);
+    localStorage.setItem('language', newLang);
+  };
+
+  return (
+    <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4">
+      <button onClick={toggleLanguage} className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} flex items-center gap-2 px-3 py-2 bg-dark-card border border-dark-border rounded-lg text-dark-text hover:text-white transition-colors`}>
+        <Globe className="w-5 h-5" />
+        <span>{i18n.language === 'fa' ? 'English' : 'فارسی'}</span>
+      </button>
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-full mb-4">
+            <Shield className="w-10 h-10 text-primary-500" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">{t('app.title')}</h1>
+          <p className="text-dark-muted">{t('login.subtitle')}</p>
+        </div>
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6 shadow-2xl">
+          <h2 className="text-xl font-semibold text-white mb-6 text-center">{t('login.title')}</h2>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-400">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" /><span>{error}</span>
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-dark-text text-sm font-medium mb-2">{t('login.username')}</label>
+              <div className="relative">
+                <User className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className={`w-full bg-dark-bg border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors`} placeholder={t('login.username')} required />
+              </div>
+            </div>
+            <div>
+              <label className="block text-dark-text text-sm font-medium mb-2">{t('login.password')}</label>
+              <div className="relative">
+                <Lock className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full bg-dark-bg border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors`} placeholder={t('login.password')} required />
+              </div>
+            </div>
+            <button type="submit" disabled={loading} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t('login.submit')}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+LOGINJS_EOF
+
+    # Dashboard.js
+    cat > $INSTALL_DIR/frontend/src/pages/Dashboard.js << 'DASHBOARDJS_EOF'
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Users, UserCheck, UserX, Clock, Database, Wifi, Server, CheckCircle, XCircle } from 'lucide-react';
+import api from '../utils/api';
+
+const formatBytes = (bytes, decimals = 2) => {
+  if (!bytes || bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+const Dashboard = () => {
+  const { t } = useTranslation();
+  const [stats, setStats] = useState(null);
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    try {
+      const [statsRes, systemRes] = await Promise.all([api.get('/dashboard/stats'), api.get('/dashboard/system')]);
+      setStats(statsRes.data);
+      setSystemInfo(systemRes.data);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statCards = [
+    { title: t('dashboard.totalClients'), value: stats?.total_clients || 0, icon: Users, color: 'bg-blue-500' },
+    { title: t('dashboard.activeClients'), value: stats?.active_clients || 0, icon: UserCheck, color: 'bg-green-500' },
+    { title: t('dashboard.onlineClients'), value: stats?.online_clients || 0, icon: Wifi, color: 'bg-emerald-500' },
+    { title: t('dashboard.disabledClients'), value: stats?.disabled_clients || 0, icon: UserX, color: 'bg-gray-500' },
+    { title: t('dashboard.expiredClients'), value: stats?.expired_clients || 0, icon: Clock, color: 'bg-red-500' },
+    { title: t('dashboard.totalDataUsed'), value: formatBytes(stats?.total_data_used || 0), icon: Database, color: 'bg-purple-500' }
+  ];
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div></div>;
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div><h1 className="text-2xl font-bold text-white">{t('dashboard.title')}</h1></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {statCards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <div key={index} className="bg-dark-card border border-dark-border rounded-xl p-6 card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-dark-muted text-sm mb-1">{card.title}</p>
+                  <p className="text-2xl font-bold text-white">{card.value}</p>
+                </div>
+                <div className={`p-3 ${card.color} rounded-lg bg-opacity-20`}>
+                  <Icon className={`w-6 h-6 ${card.color.replace('bg-', 'text-')}`} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Server className="w-5 h-5 text-primary-500" />{t('dashboard.systemStatus')}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between p-4 bg-dark-bg rounded-lg">
+            <span className="text-dark-text">{t('dashboard.wireguardInstalled')}</span>
+            <span className="flex items-center gap-2">
+              {systemInfo?.wireguard_installed ? <><CheckCircle className="w-5 h-5 text-green-500" /><span className="text-green-500">{t('dashboard.yes')}</span></> : <><XCircle className="w-5 h-5 text-red-500" /><span className="text-red-500">{t('dashboard.no')}</span></>}
+            </span>
+          </div>
+          <div className="flex items-center justify-between p-4 bg-dark-bg rounded-lg">
+            <span className="text-dark-text">{t('dashboard.interfaceUp')}</span>
+            <span className="flex items-center gap-2">
+              {systemInfo?.interface_up ? <><CheckCircle className="w-5 h-5 text-green-500" /><span className="text-green-500">{t('dashboard.yes')}</span></> : <><XCircle className="w-5 h-5 text-yellow-500" /><span className="text-yellow-500">{t('dashboard.no')}</span></>}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+DASHBOARDJS_EOF
+
+    # Settings.js
+    cat > $INSTALL_DIR/frontend/src/pages/Settings.js << 'SETTINGSJS_EOF'
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Settings as SettingsIcon, Server, Globe, Network, Key, Save, AlertCircle, Link, Eye, EyeOff } from 'lucide-react';
+import api from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
+
+const Settings = () => {
+  const { t } = useTranslation();
+  const { isSuperAdmin } = useAuth();
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({ server_name: '', endpoint: '', wg_port: 51820, wg_dns: '1.1.1.1,8.8.8.8', mtu: 1420, persistent_keepalive: 25, subscription_enabled: true });
+
+  useEffect(() => { fetchSettings(); }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await api.get('/settings');
+      setSettings(response.data);
+      setFormData({ server_name: response.data.server_name || '', endpoint: response.data.endpoint || '', wg_port: response.data.wg_port || 51820, wg_dns: response.data.wg_dns || '1.1.1.1,8.8.8.8', mtu: response.data.mtu || 1420, persistent_keepalive: response.data.persistent_keepalive || 25, subscription_enabled: response.data.subscription_enabled !== false });
+    } catch (error) {
+      toast.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.put('/settings', formData);
+      toast.success(t('settings.saveSuccess'));
+      fetchSettings();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div></div>;
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div><h1 className="text-2xl font-bold text-white flex items-center gap-2"><SettingsIcon className="w-7 h-7 text-primary-500" />{t('settings.title')}</h1></div>
+      {!settings?.endpoint && <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-4 flex items-start gap-3"><AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" /><p className="text-yellow-500">{t('settings.endpointRequired')}</p></div>}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><Server className="w-5 h-5 text-primary-500" />{t('settings.title')}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="block text-dark-text text-sm font-medium mb-2">{t('settings.serverName')}</label><input type="text" value={formData.server_name} onChange={(e) => setFormData({ ...formData, server_name: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" disabled={!isSuperAdmin()} /></div>
+            <div><label className="block text-dark-text text-sm font-medium mb-2"><Globe className="w-4 h-4 inline ml-1" />{t('settings.endpoint')} *</label><input type="text" value={formData.endpoint} onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" placeholder="example.com or 1.2.3.4" disabled={!isSuperAdmin()} /></div>
+            <div><label className="block text-dark-text text-sm font-medium mb-2"><Network className="w-4 h-4 inline ml-1" />{t('settings.port')}</label><input type="number" value={formData.wg_port} onChange={(e) => setFormData({ ...formData, wg_port: parseInt(e.target.value) })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" disabled={!isSuperAdmin()} /></div>
+            <div><label className="block text-dark-text text-sm font-medium mb-2">{t('settings.dns')}</label><input type="text" value={formData.wg_dns} onChange={(e) => setFormData({ ...formData, wg_dns: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" disabled={!isSuperAdmin()} /></div>
+            <div><label className="block text-dark-text text-sm font-medium mb-2">{t('settings.mtu')}</label><input type="number" value={formData.mtu} onChange={(e) => setFormData({ ...formData, mtu: parseInt(e.target.value) })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" disabled={!isSuperAdmin()} /></div>
+            <div><label className="block text-dark-text text-sm font-medium mb-2">{t('settings.keepalive')}</label><input type="number" value={formData.persistent_keepalive} onChange={(e) => setFormData({ ...formData, persistent_keepalive: parseInt(e.target.value) })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" disabled={!isSuperAdmin()} /></div>
+          </div>
+        </div>
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><Link className="w-5 h-5 text-primary-500" />{t('settings.subscriptionSettings')}</h2>
+          <div className="flex items-center justify-between p-4 bg-dark-bg rounded-lg">
+            <div className="flex items-center gap-3">{formData.subscription_enabled ? <Eye className="w-5 h-5 text-green-500" /> : <EyeOff className="w-5 h-5 text-red-500" />}<div><p className="text-white font-medium">{t('settings.subscriptionPage')}</p><p className="text-dark-muted text-sm">{t('settings.subscriptionPageDesc')}</p></div></div>
+            <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" checked={formData.subscription_enabled} onChange={(e) => setFormData({ ...formData, subscription_enabled: e.target.checked })} className="sr-only peer" disabled={!isSuperAdmin()} /><div className="w-11 h-6 bg-dark-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div></label>
+          </div>
+        </div>
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-primary-500" />{t('settings.publicKey')}</h2>
+          <div className="bg-dark-bg border border-dark-border rounded-lg p-4"><code className="text-green-400 break-all text-sm">{settings?.server_public_key || 'N/A'}</code></div>
+        </div>
+        {isSuperAdmin() && <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">{saving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-5 h-5" />}{t('settings.save')}</button>}
+      </form>
+    </div>
+  );
+};
+
+export default Settings;
+SETTINGSJS_EOF
+
+    # Users.js
+    cat > $INSTALL_DIR/frontend/src/pages/Users.js << 'USERSJS_EOF'
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Users as UsersIcon, Plus, Search, Edit, Trash2, Shield, ShieldCheck, Eye } from 'lucide-react';
+import api from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
+import Modal from '../components/Modal';
+import toast from 'react-hot-toast';
+
+const Users = () => {
+  const { t, i18n } = useTranslation();
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({ username: '', password: '', role: 'viewer', is_active: true });
+  const isRTL = i18n.language === 'fa';
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const fetchUsers = async () => {
+    try { const response = await api.get('/users'); setUsers(response.data); } catch (error) { toast.error(t('common.error')); } finally { setLoading(false); }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { username: formData.username, role: formData.role, is_active: formData.is_active };
+      if (formData.password) data.password = formData.password;
+      if (selectedUser) { await api.put(`/users/${selectedUser.id}`, data); toast.success(t('users.updateSuccess')); }
+      else { data.password = formData.password; await api.post('/users', data); toast.success(t('users.createSuccess')); }
+      setShowModal(false); resetForm(); fetchUsers();
+    } catch (error) { toast.error(error.response?.data?.detail || t('common.error')); }
+  };
+
+  const handleDelete = async (user) => {
+    if (user.id === currentUser?.id) { toast.error(t('users.cannotDeleteSelf')); return; }
+    if (!window.confirm(t('users.confirmDelete'))) return;
+    try { await api.delete(`/users/${user.id}`); toast.success(t('users.deleteSuccess')); fetchUsers(); } catch (error) { toast.error(error.response?.data?.detail || t('common.error')); }
+  };
+
+  const handleEdit = (user) => { setSelectedUser(user); setFormData({ username: user.username, password: '', role: user.role, is_active: user.is_active }); setShowModal(true); };
+  const resetForm = () => { setSelectedUser(null); setFormData({ username: '', password: '', role: 'viewer', is_active: true }); };
+  const getRoleIcon = (role) => { if (role === 'super_admin') return <ShieldCheck className="w-4 h-4 text-purple-500" />; if (role === 'admin') return <Shield className="w-4 h-4 text-blue-500" />; return <Eye className="w-4 h-4 text-gray-500" />; };
+  const getRoleLabel = (role) => { if (role === 'super_admin') return t('users.superAdmin'); if (role === 'admin') return t('users.admin'); return t('users.viewer'); };
+  const filteredUsers = users.filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div></div>;
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2"><UsersIcon className="w-7 h-7 text-primary-500" />{t('users.title')}</h1>
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" />{t('users.addNew')}</button>
+      </div>
+      <div className="relative"><Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('common.search')} className={`w-full bg-dark-card border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500`} /></div>
+      {filteredUsers.length === 0 ? <div className="text-center py-12 text-dark-muted"><UsersIcon className="w-16 h-16 mx-auto mb-4 opacity-50" /><p>{t('users.noUsers')}</p></div> : (
+        <div className="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead><tr className="bg-dark-border"><th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase">{t('users.username')}</th><th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase">{t('users.role')}</th><th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase">{t('users.status')}</th><th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase">{t('users.actions')}</th></tr></thead>
+              <tbody className="divide-y divide-dark-border">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-dark-border/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-3"><div className="p-2 bg-dark-border rounded-lg">{getRoleIcon(user.role)}</div><span className="text-white font-medium">{user.username}</span></div></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-dark-text">{getRoleLabel(user.role)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>{user.is_active ? t('users.active') : t('users.inactive')}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><button onClick={() => handleEdit(user)} className="p-2 text-dark-muted hover:text-white hover:bg-dark-border rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>{user.id !== currentUser?.id && <button onClick={() => handleDelete(user)} className="p-2 text-dark-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>}</div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={selectedUser ? t('users.edit') : t('users.addNew')}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div><label className="block text-dark-text text-sm font-medium mb-2">{t('users.username')} *</label><input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" required /></div>
+          <div><label className="block text-dark-text text-sm font-medium mb-2">{t('users.password')} {!selectedUser && '*'}</label><input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white" required={!selectedUser} /></div>
+          <div><label className="block text-dark-text text-sm font-medium mb-2">{t('users.role')}</label><select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"><option value="super_admin">{t('users.superAdmin')}</option><option value="admin">{t('users.admin')}</option><option value="viewer">{t('users.viewer')}</option></select></div>
+          <div className="flex items-center gap-2"><input type="checkbox" id="is_active" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4 text-primary-600 bg-dark-bg border-dark-border rounded focus:ring-primary-500" /><label htmlFor="is_active" className="text-dark-text">{t('users.active')}</label></div>
+          <div className="flex gap-3 pt-4"><button type="submit" className="btn-primary flex-1">{t('common.save')}</button><button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="btn-secondary flex-1">{t('common.cancel')}</button></div>
+        </form>
+      </Modal>
+    </div>
+  );
+};
+
+export default Users;
+USERSJS_EOF
+
+    # Subscription.js
+    cat > $INSTALL_DIR/frontend/src/pages/Subscription.js << 'SUBSCRIPTIONJS_EOF'
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Shield, Wifi, WifiOff, Clock, Database, Download, Upload, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Zap } from 'lucide-react';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL || '/api';
+
+const formatBytes = (bytes, decimals = 2) => {
+  if (!bytes || bytes === 0) return '0 بایت';
+  const k = 1024; const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['بایت', 'کیلوبایت', 'مگابایت', 'گیگابایت', 'ترابایت'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const getRemainingDays = (expiryDate) => {
+  if (!expiryDate) return null;
+  const now = new Date(); const expiry = new Date(expiryDate);
+  const diff = expiry - now;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+const Subscription = () => {
+  const { clientId } = useParams();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { fetchData(); const interval = setInterval(fetchData, 30000); return () => clearInterval(interval); }, [clientId]);
+
+  const fetchData = async () => {
+    try { const response = await axios.get(`${API_URL}/sub/${clientId}`); setData(response.data); setError(null); }
+    catch (err) { setError(err.response?.data?.detail || 'خطا در دریافت اطلاعات'); }
+    finally { setLoading(false); }
+  };
+
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      active: { label: 'فعال', color: 'text-green-500', bg: 'bg-green-500/20', icon: CheckCircle },
+      disabled: { label: 'غیرفعال', color: 'text-gray-500', bg: 'bg-gray-500/20', icon: XCircle },
+      expired: { label: 'منقضی شده', color: 'text-red-500', bg: 'bg-red-500/20', icon: AlertCircle },
+      data_limit_reached: { label: 'حجم تمام شده', color: 'text-orange-500', bg: 'bg-orange-500/20', icon: AlertCircle }
+    };
+    return statusMap[status] || statusMap.active;
+  };
+
+  if (loading) return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center" dir="rtl"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div><p className="text-slate-400">در حال بارگذاری...</p></div></div>;
+  if (error) return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center" dir="rtl"><div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 text-center max-w-md"><XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" /><h1 className="text-xl font-bold text-white mb-2">خطا</h1><p className="text-slate-400">{error}</p></div></div>;
+
+  const statusInfo = getStatusInfo(data.status);
+  const StatusIcon = statusInfo.icon;
+  const remainingDays = getRemainingDays(data.expiry_date);
+  const usagePercent = data.data_limit ? Math.min((data.data_used / data.data_limit) * 100, 100) : 0;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4" dir="rtl">
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="text-center"><div className="inline-flex items-center justify-center w-20 h-20 bg-blue-500/20 rounded-full mb-4"><Shield className="w-10 h-10 text-blue-500" /></div><h1 className="text-2xl font-bold text-white mb-1">{data.name}</h1><p className="text-slate-400">اطلاعات اشتراک WireGuard</p></div>
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3"><div className={`p-3 rounded-xl ${statusInfo.bg}`}><StatusIcon className={`w-6 h-6 ${statusInfo.color}`} /></div><div><p className="text-slate-400 text-sm">وضعیت</p><p className={`font-bold text-lg ${statusInfo.color}`}>{statusInfo.label}</p></div></div>
+            <div className="flex items-center gap-2">{data.is_online ? <span className="flex items-center gap-1 px-3 py-1 bg-green-500/20 text-green-500 rounded-full text-sm"><Wifi className="w-4 h-4" />آنلاین</span> : <span className="flex items-center gap-1 px-3 py-1 bg-slate-600/50 text-slate-400 rounded-full text-sm"><WifiOff className="w-4 h-4" />آفلاین</span>}</div>
+          </div>
+        </div>
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6">
+          <h2 className="text-white font-semibold mb-4 flex items-center gap-2"><Database className="w-5 h-5 text-blue-500" />مصرف داده</h2>
+          {data.data_limit ? (<><div className="flex justify-between text-sm mb-2"><span className="text-slate-400">مصرف شده</span><span className="text-white">{formatBytes(data.data_used)}</span></div><div className="w-full bg-slate-700 rounded-full h-3 mb-2"><div className={`h-3 rounded-full transition-all ${usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }} /></div><div className="flex justify-between text-sm"><span className="text-slate-400">باقی‌مانده</span><span className={data.data_remaining > 0 ? 'text-green-500' : 'text-red-500'}>{data.data_remaining > 0 ? formatBytes(data.data_remaining) : 'تمام شده'}</span></div><div className="flex justify-between text-sm mt-1"><span className="text-slate-400">کل حجم</span><span className="text-white">{formatBytes(data.data_limit)}</span></div></>) : <p className="text-green-500 text-center py-4">حجم نامحدود ♾️</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-4"><div className="flex items-center gap-2 mb-2"><Download className="w-5 h-5 text-green-500" /><span className="text-slate-400 text-sm">دانلود</span></div><p className="text-white font-bold text-lg">{formatBytes(data.download)}</p></div>
+          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-4"><div className="flex items-center gap-2 mb-2"><Upload className="w-5 h-5 text-blue-500" /><span className="text-slate-400 text-sm">آپلود</span></div><p className="text-white font-bold text-lg">{formatBytes(data.upload)}</p></div>
+        </div>
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6">
+          <h2 className="text-white font-semibold mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-blue-500" />اطلاعات زمانی</h2>
+          {data.start_on_first_connect && !data.timer_started ? (<div className="text-center py-4"><div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-500/20 rounded-full mb-2"><Clock className="w-6 h-6 text-yellow-500" /></div><p className="text-yellow-500 font-medium">در انتظار اولین اتصال</p><p className="text-slate-400 text-sm mt-1">پس از اولین اتصال، {data.expiry_days} روز اعتبار شروع می‌شود</p></div>) : (<div className="space-y-3">{data.expiry_date ? (<><div className="flex justify-between items-center"><span className="text-slate-400">تاریخ انقضا</span><span className="text-white">{formatDate(data.expiry_date)}</span></div><div className="flex justify-between items-center"><span className="text-slate-400">روز باقی‌مانده</span><span className={remainingDays > 0 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{remainingDays > 0 ? `${remainingDays} روز` : 'منقضی شده'}</span></div></>) : <p className="text-green-500 text-center py-4">بدون محدودیت زمانی ♾️</p>}{data.first_connection_at && <div className="flex justify-between items-center pt-2 border-t border-slate-700"><span className="text-slate-400">اولین اتصال</span><span className="text-white text-sm">{formatDate(data.first_connection_at)}</span></div>}</div>)}
+        </div>
+        {data.auto_renew && <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4"><div className="flex items-center gap-2 mb-2"><Zap className="w-5 h-5 text-yellow-500" /><span className="text-yellow-500 font-medium">تمدید خودکار فعال</span></div><p className="text-slate-400 text-sm">این اشتراک پس از اتمام حجم یا زمان، به صورت خودکار تمدید می‌شود.</p>{data.renew_count > 0 && <p className="text-slate-400 text-sm mt-1">تعداد تمدید: <span className="text-white">{data.renew_count} بار</span></p>}</div>}
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Calendar className="w-5 h-5 text-slate-400" /><span className="text-slate-400">تاریخ ایجاد</span></div><span className="text-white">{formatDate(data.created_at)}</span></div></div>
+        <button onClick={fetchData} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"><RefreshCw className="w-5 h-5" />بروزرسانی اطلاعات</button>
+        <p className="text-center text-slate-500 text-sm">آخرین بروزرسانی: {new Date().toLocaleTimeString('fa-IR')}</p>
+      </div>
+    </div>
+  );
+};
+
+export default Subscription;
+SUBSCRIPTIONJS_EOF
+
+    echo "Page components created successfully"
 }
 
-# Create Layout component
+# Create Layout component inline
 create_layout_component() {
-    echo "Layout component setup..."
-    # Already handled by create_page_components
+    echo "Creating Layout component..."
+    
+    cat > $INSTALL_DIR/frontend/src/components/Layout.js << 'LAYOUTJS_EOF'
+import React, { useState } from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { LayoutDashboard, Users, Shield, Settings, LogOut, Menu, X, Globe, ChevronDown } from 'lucide-react';
+
+const Layout = () => {
+  const { t, i18n } = useTranslation();
+  const { user, logout, isSuperAdmin } = useAuth();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [langDropdown, setLangDropdown] = useState(false);
+  const isRTL = i18n.language === 'fa';
+
+  const menuItems = [
+    { path: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
+    { path: '/clients', icon: Shield, label: t('nav.clients') },
+    ...(isSuperAdmin() ? [{ path: '/users', icon: Users, label: t('nav.users') }] : []),
+    { path: '/settings', icon: Settings, label: t('nav.settings') },
+  ];
+
+  const changeLanguage = (lang) => { i18n.changeLanguage(lang); localStorage.setItem('language', lang); setLangDropdown(false); };
+  const handleLogout = () => { logout(); };
+
+  return (
+    <div className="flex h-screen">
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`fixed lg:static inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-50 w-64 bg-dark-card border-${isRTL ? 'l' : 'r'} border-dark-border transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'}`}>
+        <div className="flex flex-col h-full">
+          <div className="p-6 border-b border-dark-border">
+            <h1 className="text-xl font-bold text-white flex items-center gap-2"><Shield className="w-8 h-8 text-primary-500" /><span className="gradient-text">{t('app.title')}</span></h1>
+            <p className="text-dark-muted text-sm mt-1">{t('app.subtitle')}</p>
+          </div>
+          <nav className="flex-1 p-4 space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)} className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive ? 'bg-primary-600 text-white' : 'text-dark-muted hover:bg-dark-border hover:text-white'}`}>
+                  <Icon className="w-5 h-5" /><span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="p-4 border-t border-dark-border">
+            <div className="flex items-center justify-between mb-4"><div><p className="text-white font-medium">{user?.username}</p><p className="text-dark-muted text-sm capitalize">{user?.role?.replace('_', ' ')}</p></div></div>
+            <button onClick={handleLogout} className="flex items-center gap-2 w-full px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span>{t('nav.logout')}</span></button>
+          </div>
+        </div>
+      </aside>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-dark-card border-b border-dark-border px-4 lg:px-6 py-4">
+          <div className="flex items-center justify-between">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden text-dark-text hover:text-white">{sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}</button>
+            <div className="relative mr-auto lg:mr-0">
+              <button onClick={() => setLangDropdown(!langDropdown)} className="flex items-center gap-2 px-3 py-2 bg-dark-border rounded-lg text-dark-text hover:text-white transition-colors"><Globe className="w-5 h-5" /><span>{i18n.language === 'fa' ? 'فارسی' : 'English'}</span><ChevronDown className="w-4 h-4" /></button>
+              {langDropdown && (
+                <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-32 bg-dark-card border border-dark-border rounded-lg shadow-xl z-50`}>
+                  <button onClick={() => changeLanguage('fa')} className={`w-full px-4 py-2 text-right hover:bg-dark-border transition-colors ${i18n.language === 'fa' ? 'text-primary-500' : 'text-dark-text'}`}>فارسی</button>
+                  <button onClick={() => changeLanguage('en')} className={`w-full px-4 py-2 text-right hover:bg-dark-border transition-colors ${i18n.language === 'en' ? 'text-primary-500' : 'text-dark-text'}`}>English</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 overflow-auto p-4 lg:p-6"><Outlet /></main>
+      </div>
+    </div>
+  );
+};
+
+export default Layout;
+LAYOUTJS_EOF
+
+    echo "Layout component created"
 }
 
 # Create Docker files
