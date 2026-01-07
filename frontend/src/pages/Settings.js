@@ -7,7 +7,10 @@ import {
   Network,
   Key,
   Save,
-  AlertCircle
+  AlertCircle,
+  Link,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,7 +28,8 @@ const Settings = () => {
     wg_port: 51820,
     wg_dns: '1.1.1.1,8.8.8.8',
     mtu: 1420,
-    persistent_keepalive: 25
+    persistent_keepalive: 25,
+    subscription_enabled: true
   });
 
   useEffect(() => {
@@ -42,7 +46,8 @@ const Settings = () => {
         wg_port: response.data.wg_port || 51820,
         wg_dns: response.data.wg_dns || '1.1.1.1,8.8.8.8',
         mtu: response.data.mtu || 1420,
-        persistent_keepalive: response.data.persistent_keepalive || 25
+        persistent_keepalive: response.data.persistent_keepalive || 25,
+        subscription_enabled: response.data.subscription_enabled !== false
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -183,6 +188,38 @@ const Settings = () => {
                 disabled={!isSuperAdmin()}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Subscription Settings */}
+        <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Link className="w-5 h-5 text-primary-500" />
+            {t('settings.subscriptionSettings')}
+          </h2>
+          
+          <div className="flex items-center justify-between p-4 bg-dark-bg rounded-lg">
+            <div className="flex items-center gap-3">
+              {formData.subscription_enabled ? (
+                <Eye className="w-5 h-5 text-green-500" />
+              ) : (
+                <EyeOff className="w-5 h-5 text-red-500" />
+              )}
+              <div>
+                <p className="text-white font-medium">{t('settings.subscriptionPage')}</p>
+                <p className="text-dark-muted text-sm">{t('settings.subscriptionPageDesc')}</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.subscription_enabled}
+                onChange={(e) => setFormData({ ...formData, subscription_enabled: e.target.checked })}
+                className="sr-only peer"
+                disabled={!isSuperAdmin()}
+              />
+              <div className="w-11 h-6 bg-dark-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+            </label>
           </div>
         </div>
 
