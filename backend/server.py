@@ -207,7 +207,8 @@ def init_server_settings():
             "server_address": "10.0.0.1/24",
             "endpoint": default_endpoint,
             "mtu": 1420,
-            "persistent_keepalive": 25
+            "persistent_keepalive": 25,
+            "subscription_enabled": True
         }
         settings_collection.insert_one(settings)
         print(f"Server settings initialized with endpoint: {default_endpoint or '(not set)'}")
