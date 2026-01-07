@@ -413,14 +413,22 @@ async def create_client(client: ClientCreate, current_user: TokenData = Depends(
         "preshared_key": preshared_key,
         "address": address,
         "data_limit": client.data_limit,
-        "expiry_date": client.expiry_date,
+        "expiry_date": client.expiry_date if not client.start_on_first_connect else None,
+        "expiry_days": client.expiry_days,
+        "start_on_first_connect": client.start_on_first_connect,
+        "auto_renew": client.auto_renew,
+        "auto_renew_days": client.auto_renew_days,
+        "auto_renew_data_limit": client.auto_renew_data_limit,
         "note": client.note,
         "is_enabled": True,
         "status": ClientStatus.ACTIVE.value,
         "data_used": 0,
         "created_at": datetime.utcnow(),
         "created_by": current_user.user_id,
-        "last_handshake": None
+        "last_handshake": None,
+        "first_connection_at": None,
+        "timer_started": not client.start_on_first_connect,  # If not waiting for first connect, timer is already started
+        "renew_count": 0
     }
     
     # Add peer to WireGuard
