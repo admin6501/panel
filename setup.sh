@@ -195,8 +195,17 @@ install_docker() {
 
     print_info "Installing Docker / نصب داکر..."
 
+    # Wait for apt lock
+    wait_for_apt() {
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+            print_warning "Waiting for other package manager... / در انتظار پکیج منیجر..."
+            sleep 5
+        done
+    }
+
     case $OS in
         ubuntu|debian)
+            wait_for_apt
             apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
             install -m 0755 -d /etc/apt/keyrings
             curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -205,7 +214,9 @@ install_docker() {
                 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
                 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
                 tee /etc/apt/sources.list.d/docker.list > /dev/null
+            wait_for_apt
             apt-get update -y
+            wait_for_apt
             apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
             ;;
         centos|rhel|fedora|rocky|almalinux)
