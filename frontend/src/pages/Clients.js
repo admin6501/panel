@@ -409,8 +409,16 @@ const Clients = () => {
                         <QrCode className="w-4 h-4" />
                         {t('clients.showQR')}
                       </button>
+                      <button
+                        onClick={() => { handleCopySubLink(client); setOpenMenu(null); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
+                      >
+                        <Link className="w-4 h-4" />
+                        {t('clients.copySubLink')}
+                      </button>
                       {isAdmin() && (
                         <>
+                          <div className="border-t border-dark-border my-1"></div>
                           <button
                             onClick={() => { handleEdit(client); setOpenMenu(null); }}
                             className="w-full flex items-center gap-2 px-4 py-2 text-dark-text hover:bg-dark-border transition-colors"
