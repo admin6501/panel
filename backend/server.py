@@ -474,6 +474,16 @@ async def update_client(
         update_data["data_limit"] = client_update.data_limit
     if client_update.expiry_date is not None:
         update_data["expiry_date"] = client_update.expiry_date
+    if client_update.expiry_days is not None:
+        update_data["expiry_days"] = client_update.expiry_days
+    if client_update.start_on_first_connect is not None:
+        update_data["start_on_first_connect"] = client_update.start_on_first_connect
+    if client_update.auto_renew is not None:
+        update_data["auto_renew"] = client_update.auto_renew
+    if client_update.auto_renew_days is not None:
+        update_data["auto_renew_days"] = client_update.auto_renew_days
+    if client_update.auto_renew_data_limit is not None:
+        update_data["auto_renew_data_limit"] = client_update.auto_renew_data_limit
     if client_update.note is not None:
         update_data["note"] = client_update.note
     if client_update.is_enabled is not None:
