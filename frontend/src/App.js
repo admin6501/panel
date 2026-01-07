@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
+import Subscription from './pages/Subscription';
 import './App.css';
 
 // Protected Route Component
@@ -47,6 +48,9 @@ function AppContent() {
     <Router>
       <div className={`min-h-screen bg-dark-bg ${isRTL ? 'font-vazir' : 'font-inter'}`}>
         <Routes>
+          {/* Public Subscription Page */}
+          <Route path="/sub/:clientId" element={<Subscription />} />
+          
           <Route path="/login" element={<Login />} />
           <Route
             path="/"
