@@ -457,6 +457,35 @@ async def reset_client_data(client_id: str, current_user: TokenData = Depends(re
     return {"message": "Data usage reset successfully"}
 
 
+@app.post("/api/clients/{client_id}/reset-expiry")
+async def reset_client_expiry(client_id: str, days: int = 30, current_user: TokenData = Depends(require_admin)):
+    """Reset/extend client expiry date by specified days from now"""
+    client = clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    new_expiry = datetime.utcnow() + timedelta(days=days)
+    clients_collection.update_one(
+        {"id": client_id},
+        {"$set": {"expiry_date": new_expiry}}
+    )
+    return {"message": f"Expiry date extended by {days} days", "new_expiry": new_expiry.isoformat()}
+
+
+@app.post("/api/clients/{client_id}/remove-expiry")
+async def remove_client_expiry(client_id: str, current_user: TokenData = Depends(require_admin)):
+    """Remove expiry date (make unlimited)"""
+    client = clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    clients_collection.update_one(
+        {"id": client_id},
+        {"$set": {"expiry_date": None}}
+    )
+    return {"message": "Expiry date removed successfully"}
+
+
 # ==================== SETTINGS ROUTES ====================
 
 @app.get("/api/settings")
