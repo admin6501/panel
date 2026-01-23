@@ -106,13 +106,33 @@ class ServerUpdate(BaseModel):
     description: Optional[str] = None
 
 
+# Category Models
+class CategoryCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
 # Plan Models
 class PlanCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    category_id: Optional[str] = None
     price: float
-    duration_days: int
-    traffic_gb: Optional[float] = None
+    duration_days: Optional[int] = None  # None = unlimited
+    traffic_gb: Optional[float] = None  # None = unlimited
     user_limit: int = 1
     server_ids: List[str] = []
     is_active: bool = True
@@ -123,9 +143,10 @@ class PlanCreate(BaseModel):
 class PlanUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    category_id: Optional[str] = None
     price: Optional[float] = None
-    duration_days: Optional[int] = None
-    traffic_gb: Optional[float] = None
+    duration_days: Optional[int] = None  # -1 to set unlimited
+    traffic_gb: Optional[float] = None  # -1 to set unlimited
     user_limit: Optional[int] = None
     server_ids: Optional[List[str]] = None
     is_active: Optional[bool] = None
