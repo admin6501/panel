@@ -1,345 +1,222 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  Users as UsersIcon,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Shield,
-  ShieldCheck,
-  Eye
-} from 'lucide-react';
-import api from '../utils/api';
-import { formatDate } from '../utils/helpers';
-import { useAuth } from '../contexts/AuthContext';
-import Modal from '../components/Modal';
+import axios from 'axios';
+import { Search, Ban, Wallet, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('fa-IR').format(price) + ' تومان';
+};
+
 const Users = () => {
-  const { t, i18n } = useTranslation();
-  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    role: 'viewer',
-    is_active: true
-  });
-
-  const isRTL = i18n.language === 'fa';
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState({ is_reseller: null, is_banned: null });
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [search, filter, page]);
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users');
-      setUsers(response.data);
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (filter.is_reseller !== null) params.append('is_reseller', filter.is_reseller);
+      if (filter.is_banned !== null) params.append('is_banned', filter.is_banned);
+      params.append('skip', page * 50);
+      params.append('limit', 50);
+
+      const response = await axios.get(`${API_URL}/api/users?${params}`);
+      setUsers(response.data.users);
+      setTotal(response.data.total);
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error(t('common.error'));
+      toast.error('خطا در دریافت کاربران');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleBan = async (telegramId) => {
     try {
-      const data = {
-        username: formData.username,
-        role: formData.role,
-        is_active: formData.is_active
-      };
-
-      if (formData.password) {
-        data.password = formData.password;
-      }
-
-      if (selectedUser) {
-        await api.put(`/users/${selectedUser.id}`, data);
-        toast.success(t('users.updateSuccess'));
-      } else {
-        data.password = formData.password;
-        await api.post('/users', data);
-        toast.success(t('users.createSuccess'));
-      }
-
-      setShowModal(false);
-      resetForm();
+      const response = await axios.put(`${API_URL}/api/users/${telegramId}/ban`);
+      toast.success(response.data.is_banned ? 'کاربر مسدود شد' : 'کاربر آزاد شد');
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || t('common.error'));
+      toast.error('خطا در تغییر وضعیت کاربر');
     }
   };
 
-  const handleDelete = async (user) => {
-    if (user.id === currentUser?.id) {
-      toast.error(t('users.cannotDeleteSelf'));
-      return;
-    }
-
-    if (!window.confirm(t('users.confirmDelete'))) return;
+  const handleWalletUpdate = async (telegramId, currentBalance) => {
+    const newAmount = prompt('موجودی جدید (تومان):', currentBalance);
+    if (newAmount === null) return;
 
     try {
-      await api.delete(`/users/${user.id}`);
-      toast.success(t('users.deleteSuccess'));
+      await axios.put(`${API_URL}/api/users/${telegramId}/wallet?amount=${parseFloat(newAmount)}`);
+      toast.success('موجودی بروزرسانی شد');
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || t('common.error'));
+      toast.error('خطا در بروزرسانی موجودی');
     }
   };
-
-  const handleEdit = (user) => {
-    setSelectedUser(user);
-    setFormData({
-      username: user.username,
-      password: '',
-      role: user.role,
-      is_active: user.is_active
-    });
-    setShowModal(true);
-  };
-
-  const resetForm = () => {
-    setSelectedUser(null);
-    setFormData({
-      username: '',
-      password: '',
-      role: 'viewer',
-      is_active: true
-    });
-  };
-
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'super_admin':
-        return <ShieldCheck className="w-4 h-4 text-purple-500" />;
-      case 'admin':
-        return <Shield className="w-4 h-4 text-blue-500" />;
-      default:
-        return <Eye className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getRoleLabel = (role) => {
-    switch (role) {
-      case 'super_admin':
-        return t('users.superAdmin');
-      case 'admin':
-        return t('users.admin');
-      default:
-        return t('users.viewer');
-    }
-  };
-
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6" data-testid="users-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <UsersIcon className="w-7 h-7 text-primary-500" />
-          {t('users.title')}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-white">کاربران تلگرام</h1>
+          <p className="text-slate-400 text-sm mt-1">{total} کاربر</p>
+        </div>
         <button
-          onClick={() => { resetForm(); setShowModal(true); }}
-          className="btn-primary flex items-center gap-2"
+          onClick={fetchUsers}
+          className="btn-secondary flex items-center gap-2"
+          data-testid="refresh-users-btn"
         >
-          <Plus className="w-5 h-5" />
-          {t('users.addNew')}
+          <RefreshCw size={18} />
+          بروزرسانی
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t('common.search')}
-          className={`w-full bg-dark-card border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500`}
-        />
+      {/* Filters */}
+      <div className="glass-card p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <input
+              type="text"
+              placeholder="جستجو (نام کاربری، شناسه)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pr-10 w-full"
+              data-testid="search-input"
+            />
+          </div>
+          <select
+            value={filter.is_reseller === null ? '' : filter.is_reseller.toString()}
+            onChange={(e) => setFilter({ ...filter, is_reseller: e.target.value === '' ? null : e.target.value === 'true' })}
+            className="input w-full sm:w-40"
+            data-testid="reseller-filter"
+          >
+            <option value="">همه</option>
+            <option value="true">نمایندگان</option>
+            <option value="false">کاربران عادی</option>
+          </select>
+          <select
+            value={filter.is_banned === null ? '' : filter.is_banned.toString()}
+            onChange={(e) => setFilter({ ...filter, is_banned: e.target.value === '' ? null : e.target.value === 'true' })}
+            className="input w-full sm:w-40"
+            data-testid="banned-filter"
+          >
+            <option value="">همه</option>
+            <option value="true">مسدود شده</option>
+            <option value="false">فعال</option>
+          </select>
+        </div>
       </div>
 
-      {/* Users Table */}
-      {filteredUsers.length === 0 ? (
-        <div className="text-center py-12 text-dark-muted">
-          <UsersIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p>{t('users.noUsers')}</p>
-        </div>
-      ) : (
-        <div className="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-dark-border">
-                  <th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase tracking-wider">
-                    {t('users.username')}
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase tracking-wider">
-                    {t('users.role')}
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase tracking-wider">
-                    {t('users.status')}
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase tracking-wider">
-                    {t('users.createdAt')}
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-dark-muted uppercase tracking-wider">
-                    {t('users.actions')}
-                  </th>
+      {/* Table */}
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>شناسه تلگرام</th>
+                <th>نام کاربری</th>
+                <th>نام</th>
+                <th>موجودی</th>
+                <th>وضعیت</th>
+                <th>نوع</th>
+                <th>تاریخ عضویت</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8">
+                    <div className="spinner mx-auto"></div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-border">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-dark-border/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-dark-border rounded-lg">
-                          {getRoleIcon(user.role)}
-                        </div>
-                        <span className="text-white font-medium">{user.username}</span>
-                        {user.id === currentUser?.id && (
-                          <span className="text-xs text-primary-500">(شما)</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-dark-text">{getRoleLabel(user.role)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.is_active
-                          ? 'bg-green-500/20 text-green-500'
-                          : 'bg-red-500/20 text-red-500'
-                      }`}>
-                        {user.is_active ? t('users.active') : t('users.inactive')}
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-slate-400">
+                    کاربری یافت نشد
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr key={user.telegram_id} data-testid={`user-row-${user.telegram_id}`}>
+                    <td className="font-mono text-blue-400">{user.telegram_id}</td>
+                    <td>@{user.username || '-'}</td>
+                    <td>{user.first_name || '-'} {user.last_name || ''}</td>
+                    <td className="font-mono">{formatPrice(user.wallet_balance || 0)}</td>
+                    <td>
+                      <span className={`badge ${user.is_banned ? 'badge-error' : 'badge-success'}`}>
+                        {user.is_banned ? 'مسدود' : 'فعال'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-dark-muted">
-                      {formatDate(user.created_at)}
+                    <td>
+                      {user.is_reseller && (
+                        <span className="badge badge-info">نماینده</span>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="text-slate-400 text-sm">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('fa-IR') : '-'}
+                    </td>
+                    <td>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleEdit(user)}
-                          className="p-2 text-dark-muted hover:text-white hover:bg-dark-border rounded-lg transition-colors"
+                          onClick={() => handleWalletUpdate(user.telegram_id, user.wallet_balance || 0)}
+                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="ویرایش موجودی"
+                          data-testid={`wallet-btn-${user.telegram_id}`}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Wallet size={18} />
                         </button>
-                        {user.id !== currentUser?.id && (
-                          <button
-                            onClick={() => handleDelete(user)}
-                            className="p-2 text-dark-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleBan(user.telegram_id)}
+                          className={`p-2 transition-colors ${user.is_banned ? 'text-green-500 hover:text-green-400' : 'text-slate-400 hover:text-red-500'}`}
+                          title={user.is_banned ? 'رفع مسدودی' : 'مسدود کردن'}
+                          data-testid={`ban-btn-${user.telegram_id}`}
+                        >
+                          <Ban size={18} />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {total > 50 && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => setPage(Math.max(0, page - 1))}
+            disabled={page === 0}
+            className="btn-secondary"
+          >
+            قبلی
+          </button>
+          <span className="px-4 py-2 text-slate-400">
+            صفحه {page + 1} از {Math.ceil(total / 50)}
+          </span>
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={(page + 1) * 50 >= total}
+            className="btn-secondary"
+          >
+            بعدی
+          </button>
         </div>
       )}
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => { setShowModal(false); resetForm(); }}
-        title={selectedUser ? t('users.edit') : t('users.addNew')}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-dark-text text-sm font-medium mb-2">
-              {t('users.username')} *
-            </label>
-            <input
-              type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-dark-text text-sm font-medium mb-2">
-              {t('users.password')} {!selectedUser && '*'}
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
-              required={!selectedUser}
-              placeholder={selectedUser ? 'خالی بگذارید برای عدم تغییر' : ''}
-            />
-          </div>
-
-          <div>
-            <label className="block text-dark-text text-sm font-medium mb-2">
-              {t('users.role')}
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg py-2 px-4 text-white"
-            >
-              <option value="super_admin">{t('users.superAdmin')}</option>
-              <option value="admin">{t('users.admin')}</option>
-              <option value="viewer">{t('users.viewer')}</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={formData.is_active}
-              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-4 h-4 text-primary-600 bg-dark-bg border-dark-border rounded focus:ring-primary-500"
-            />
-            <label htmlFor="is_active" className="text-dark-text">
-              {t('users.active')}
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn-primary flex-1">
-              {t('common.save')}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowModal(false); resetForm(); }}
-              className="btn-secondary flex-1"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };
