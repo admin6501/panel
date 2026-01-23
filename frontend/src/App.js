@@ -1,25 +1,28 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useTranslation } from 'react-i18next';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Clients from './pages/Clients';
 import Users from './pages/Users';
+import Servers from './pages/Servers';
+import Plans from './pages/Plans';
+import Orders from './pages/Orders';
+import Payments from './pages/Payments';
+import DiscountCodes from './pages/DiscountCodes';
+import Tickets from './pages/Tickets';
+import Resellers from './pages/Resellers';
 import Settings from './pages/Settings';
-import Subscription from './pages/Subscription';
 import './App.css';
 
-// Protected Route Component
-const ProtectedRoute = ({ children, requiredRole }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="spinner"></div>
       </div>
     );
   }
@@ -28,29 +31,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole === 'super_admin' && user?.role !== 'super_admin') {
-    return <Navigate to="/" replace />;
-  }
-
   return children;
 };
 
 function AppContent() {
-  const { i18n } = useTranslation();
-  const isRTL = i18n.language === 'fa';
-
-  React.useEffect(() => {
-    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language, isRTL]);
-
   return (
     <Router>
-      <div className={`min-h-screen bg-dark-bg ${isRTL ? 'font-vazir' : 'font-inter'}`}>
+      <div className="min-h-screen bg-[#020617]">
         <Routes>
-          {/* Public Subscription Page */}
-          <Route path="/sub/:clientId" element={<Subscription />} />
-          
           <Route path="/login" element={<Login />} />
           <Route
             path="/"
@@ -61,22 +49,25 @@ function AppContent() {
             }
           >
             <Route index element={<Dashboard />} />
-            <Route path="clients" element={<Clients />} />
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="users" element={<Users />} />
+            <Route path="servers" element={<Servers />} />
+            <Route path="plans" element={<Plans />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="payments" element={<Payments />} />
+            <Route path="discount-codes" element={<DiscountCodes />} />
+            <Route path="tickets" element={<Tickets />} />
+            <Route path="resellers" element={<Resellers />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
         <Toaster
-          position={isRTL ? 'top-left' : 'top-right'}
+          position="top-left"
           toastOptions={{
-            className: 'bg-dark-card text-dark-text border border-dark-border',
+            style: {
+              background: '#0f172a',
+              color: '#f8fafc',
+              border: '1px solid #1e293b',
+            },
             duration: 4000,
           }}
         />

@@ -1,135 +1,116 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, User, Lock, AlertCircle, Globe } from 'lucide-react';
+import { Bot, Lock, User, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Login = () => {
-  const { t, i18n } = useTranslation();
-  const { login, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const isRTL = i18n.language === 'fa';
-
-  // Redirect if already logged in
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
-    }
-  }, [isAuthenticated, navigate]);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    if (!username || !password) {
+      toast.error('لطفاً تمام فیلدها را پر کنید');
+      return;
+    }
 
-    try {
-      await login(username, password);
-      toast.success(t('common.success'));
+    setLoading(true);
+    const result = await login(username, password);
+    setLoading(false);
+
+    if (result.success) {
+      toast.success('ورود موفقیت‌آمیز');
       navigate('/');
-    } catch (err) {
-      setError(t('login.error'));
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(result.error);
     }
   };
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language === 'fa' ? 'en' : 'fa';
-    i18n.changeLanguage(newLang);
-    localStorage.setItem('language', newLang);
-  };
-
   return (
-    <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4">
-      {/* Language Toggle */}
-      <button
-        onClick={toggleLanguage}
-        className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} flex items-center gap-2 px-3 py-2 bg-dark-card border border-dark-border rounded-lg text-dark-text hover:text-white transition-colors`}
-      >
-        <Globe className="w-5 h-5" />
-        <span>{i18n.language === 'fa' ? 'English' : 'فارسی'}</span>
-      </button>
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%)',
+      }}
+    >
+      {/* Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
+      </div>
 
-      <div className="w-full max-w-md">
+      <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-full mb-4">
-            <Shield className="w-10 h-10 text-primary-500" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-4">
+            <Bot className="text-blue-500" size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">{t('app.title')}</h1>
-          <p className="text-dark-muted">{t('login.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-white mb-2">V2Ray Bot Panel</h1>
+          <p className="text-slate-400">پنل مدیریت ربات فروش</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-dark-card border border-dark-border rounded-xl p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">
-            {t('login.title')}
-          </h2>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-400">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="glass-card p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-dark-text text-sm font-medium mb-2">
-                {t('login.username')}
-              </label>
+              <label className="block text-sm text-slate-400 mb-2">نام کاربری</label>
               <div className="relative">
-                <User className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+                <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className={`w-full bg-dark-bg border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors`}
-                  placeholder={t('login.username')}
-                  required
+                  className="input pr-10"
+                  placeholder="admin"
+                  data-testid="username-input"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-dark-text text-sm font-medium mb-2">
-                {t('login.password')}
-              </label>
+              <label className="block text-sm text-slate-400 mb-2">رمز عبور</label>
               <div className="relative">
-                <Lock className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-dark-muted`} />
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full bg-dark-bg border border-dark-border rounded-lg py-3 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-white placeholder-dark-muted focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors`}
-                  placeholder={t('login.password')}
-                  required
+                  className="input pr-10 pl-10"
+                  placeholder="••••••••"
+                  data-testid="password-input"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2"
+              data-testid="login-btn"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                t('login.submit')
+                'ورود به پنل'
               )}
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-dark-border text-center">
-            <p className="text-dark-muted text-sm">
-              Default: admin / admin
+          <div className="mt-6 pt-4 border-t border-[#1e293b] text-center">
+            <p className="text-xs text-slate-500">
+              نام کاربری و رمز عبور پیش‌فرض: admin / admin
             </p>
           </div>
         </div>

@@ -1,15 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../utils/api';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const AuthContext = createContext(null);
 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchUser();
     } else {
       setLoading(false);
@@ -18,60 +29,51 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await axios.get(`${API_URL}/api/auth/me`);
       setUser(response.data);
     } catch (error) {
-      localStorage.removeItem('token');
-      setToken(null);
-      setUser(null);
+      console.error('Failed to fetch user:', error);
+      logout();
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (username, password) => {
-    const response = await api.post('/auth/login', { username, password });
-    const newToken = response.data.access_token;
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    await fetchUser();
-    return response.data;
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
+        username,
+        password,
+      });
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      setToken(access_token);
+      await fetchUser();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'خطا در ورود',
+      };
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
     setToken(null);
     setUser(null);
   };
 
-  const isAdmin = () => {
-    return user?.role === 'super_admin' || user?.role === 'admin';
+  const value = {
+    user,
+    token,
+    loading,
+    isAuthenticated: !!token && !!user,
+    login,
+    logout,
   };
 
-  const isSuperAdmin = () => {
-    return user?.role === 'super_admin';
-  };
-
-  return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      loading,
-      login,
-      logout,
-      isAdmin,
-      isSuperAdmin,
-      isAuthenticated: !!user
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
