@@ -2,127 +2,52 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
-import uuid
 
 
+# Enums
 class UserRole(str, Enum):
     SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
-    VIEWER = "viewer"
+    SUPPORT = "support"
 
 
-class UserBase(BaseModel):
-    username: str
-    role: UserRole = UserRole.VIEWER
-    is_active: bool = True
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
-
-
-class User(UserBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    created_by: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
-class UserInDB(User):
-    hashed_password: str
-
-
-class ClientStatus(str, Enum):
-    ACTIVE = "active"
-    DISABLED = "disabled"
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
     EXPIRED = "expired"
-    DATA_LIMIT_REACHED = "data_limit_reached"
 
 
-class ClientBase(BaseModel):
-    name: str
-    email: Optional[str] = None
-    data_limit: Optional[int] = None  # in bytes, None = unlimited
-    expiry_date: Optional[datetime] = None  # None = never expires
-    expiry_days: Optional[int] = None  # Duration in days (used for reset)
-    start_on_first_connect: bool = False  # Start timer on first connection
-    auto_renew: bool = False  # Auto renew when expired or data limit reached
-    auto_renew_days: Optional[int] = None  # Days for auto renewal
-    auto_renew_data_limit: Optional[int] = None  # Data limit for auto renewal (bytes)
-    note: Optional[str] = None
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
-class ClientCreate(ClientBase):
-    pass
+class TicketStatus(str, Enum):
+    OPEN = "open"
+    ANSWERED = "answered"
+    WAITING = "waiting"
+    CLOSED = "closed"
 
 
-class ClientUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    data_limit: Optional[int] = None
-    expiry_date: Optional[datetime] = None
-    expiry_days: Optional[int] = None
-    start_on_first_connect: Optional[bool] = None
-    auto_renew: Optional[bool] = None
-    auto_renew_days: Optional[int] = None
-    auto_renew_data_limit: Optional[int] = None
-    note: Optional[str] = None
-    is_enabled: Optional[bool] = None
+class TicketPriority(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
-class Client(ClientBase):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    private_key: str = ""
-    public_key: str = ""
-    preshared_key: str = ""
-    address: str = ""
-    is_enabled: bool = True
-    status: ClientStatus = ClientStatus.ACTIVE
-    data_used: int = 0  # in bytes
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    created_by: Optional[str] = None
-    last_handshake: Optional[datetime] = None
-    first_connection_at: Optional[datetime] = None  # First connection time
-    timer_started: bool = False  # Has the timer started?
-    renew_count: int = 0  # Number of auto renewals
-
-    class Config:
-        from_attributes = True
-
-
-class ServerSettings(BaseModel):
-    id: str = "server_settings"
-    server_name: str = "WireGuard Panel"
-    wg_interface: str = "wg0"
-    wg_port: int = 51820
-    wg_network: str = "10.0.0.0/24"
-    wg_dns: str = "1.1.1.1,8.8.8.8"
-    server_public_key: str = ""
-    server_private_key: str = ""
-    server_address: str = ""
-    endpoint: str = ""
-    mtu: int = 1420
-    persistent_keepalive: int = 25
-
-
+# Auth Models
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
 class TokenData(BaseModel):
-    user_id: Optional[str] = None
-    username: Optional[str] = None
-    role: Optional[str] = None
+    user_id: str
+    username: str
+    role: str
 
 
 class LoginRequest(BaseModel):
@@ -130,10 +55,211 @@ class LoginRequest(BaseModel):
     password: str
 
 
+# Admin Models
+class AdminCreate(BaseModel):
+    username: str
+    password: str
+    role: UserRole = UserRole.ADMIN
+
+
+class AdminUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+# Telegram User Models
+class TelegramUser(BaseModel):
+    telegram_id: int
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    wallet_balance: float = 0
+    is_banned: bool = False
+    is_reseller: bool = False
+    reseller_discount: float = 0
+    referred_by: Optional[int] = None
+    referral_earnings: float = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Server/Panel Models
+class ServerCreate(BaseModel):
+    name: str
+    panel_url: str
+    panel_username: str
+    panel_password: str
+    is_active: bool = True
+    max_users: Optional[int] = None
+    description: Optional[str] = None
+
+
+class ServerUpdate(BaseModel):
+    name: Optional[str] = None
+    panel_url: Optional[str] = None
+    panel_username: Optional[str] = None
+    panel_password: Optional[str] = None
+    is_active: Optional[bool] = None
+    max_users: Optional[int] = None
+    description: Optional[str] = None
+
+
+# Plan Models
+class PlanCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    duration_days: int
+    traffic_gb: Optional[float] = None
+    user_limit: int = 1
+    server_ids: List[str] = []
+    is_active: bool = True
+    is_test: bool = False
+    sort_order: int = 0
+
+
+class PlanUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    duration_days: Optional[int] = None
+    traffic_gb: Optional[float] = None
+    user_limit: Optional[int] = None
+    server_ids: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    is_test: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+# Order Models
+class OrderCreate(BaseModel):
+    telegram_user_id: int
+    plan_id: str
+    server_id: str
+    discount_code: Optional[str] = None
+
+
+# Payment Models
+class PaymentCreate(BaseModel):
+    order_id: str
+    amount: float
+    card_number: str
+    receipt_image: Optional[str] = None
+
+
+class PaymentReview(BaseModel):
+    status: PaymentStatus
+    admin_note: Optional[str] = None
+
+
+# Discount Code Models
+class DiscountCodeCreate(BaseModel):
+    code: str
+    discount_percent: Optional[float] = None
+    discount_amount: Optional[float] = None
+    max_uses: Optional[int] = None
+    valid_until: Optional[datetime] = None
+    min_order_amount: Optional[float] = None
+    plan_ids: List[str] = []
+    is_active: bool = True
+
+
+class DiscountCodeUpdate(BaseModel):
+    code: Optional[str] = None
+    discount_percent: Optional[float] = None
+    discount_amount: Optional[float] = None
+    max_uses: Optional[int] = None
+    valid_until: Optional[datetime] = None
+    min_order_amount: Optional[float] = None
+    plan_ids: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+
+# Department Models
+class DepartmentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+# Ticket Models
+class TicketCreate(BaseModel):
+    telegram_user_id: int
+    department_id: str
+    subject: str
+    message: str
+
+
+class TicketReply(BaseModel):
+    message: str
+    is_admin: bool = False
+    admin_id: Optional[str] = None
+
+
+class TicketUpdate(BaseModel):
+    status: Optional[TicketStatus] = None
+    priority: Optional[TicketPriority] = None
+
+
+# Reseller Models
+class ResellerCreate(BaseModel):
+    telegram_user_id: int
+    discount_percent: float = 10
+    credit_limit: float = 0
+    is_active: bool = True
+
+
+class ResellerUpdate(BaseModel):
+    discount_percent: Optional[float] = None
+    credit_limit: Optional[float] = None
+    is_active: Optional[bool] = None
+    balance: Optional[float] = None
+
+
+# Bot Settings Models
+class BotSettingsUpdate(BaseModel):
+    bot_token: Optional[str] = None
+    bot_username: Optional[str] = None
+    channel_id: Optional[str] = None
+    channel_username: Optional[str] = None
+    support_username: Optional[str] = None
+    card_number: Optional[str] = None
+    card_holder: Optional[str] = None
+    welcome_message: Optional[str] = None
+    rules_message: Optional[str] = None
+    payment_timeout_minutes: Optional[int] = None
+    test_account_enabled: Optional[bool] = None
+    referral_enabled: Optional[bool] = None
+    referral_percent: Optional[float] = None
+    min_withdrawal: Optional[float] = None
+
+
+# Broadcast Models
+class BroadcastCreate(BaseModel):
+    message: str
+    target: str = "all"  # all, users, resellers
+    include_media: Optional[str] = None
+
+
+# Dashboard Stats
 class DashboardStats(BaseModel):
-    total_clients: int = 0
-    active_clients: int = 0
-    disabled_clients: int = 0
-    expired_clients: int = 0
-    total_data_used: int = 0
-    online_clients: int = 0
+    total_users: int = 0
+    total_orders: int = 0
+    total_revenue: float = 0
+    pending_payments: int = 0
+    active_subscriptions: int = 0
+    open_tickets: int = 0
+    total_resellers: int = 0
+    today_revenue: float = 0
+    today_orders: int = 0
+    today_users: int = 0
