@@ -1,0 +1,174 @@
+{
+  "identity": {
+    "persona": "E1 - The Anti-AI Designer",
+    "style_archetype": "Stealth Tech / Cyberpunk Admin",
+    "core_principles": [
+      "Fusion over Imitation: Mix utilitarian admin panels with cyberpunk aesthetics.",
+      "Emotion First: Evoke a sense of 'Control' and 'Security'.",
+      "Content is King: Data density is beautiful. Don't hide data, organize it.",
+      "Contrast: High contrast for readability in dark mode. Neon accents against deep black."
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "persian": "Vazirmatn, sans-serif",
+      "english": "Inter, sans-serif",
+      "code": "JetBrains Mono, monospace"
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "bold": 700,
+      "black": 900
+    },
+    "usage": {
+      "headings": "Vazirmatn (Bold/Black) for Persian, Inter (Bold) for English. Tight tracking.",
+      "body": "Vazirmatn (Regular) for Persian, Inter (Regular) for English.",
+      "data_values": "JetBrains Mono (Medium) for IPs, Ports, UUIDs, Prices."
+    }
+  },
+  "colors": {
+    "theme": "dark",
+    "palette": {
+      "background": {
+        "default": "#020617",
+        "paper": "#0f172a",
+        "subtle": "#1e293b"
+      },
+      "primary": {
+        "main": "#3b82f6",
+        "hover": "#2563eb",
+        "glow": "0 0 20px rgba(59, 130, 246, 0.5)"
+      },
+      "secondary": {
+        "main": "#64748b",
+        "hover": "#475569"
+      },
+      "accent": {
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "info": "#06b6d4"
+      },
+      "text": {
+        "primary": "#f8fafc",
+        "secondary": "#94a3b8",
+        "disabled": "#475569"
+      },
+      "border": {
+        "default": "#1e293b",
+        "active": "#3b82f6"
+      }
+    },
+    "gradients": {
+      "primary": "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+      "surface": "linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%)"
+    }
+  },
+  "layout": {
+    "direction": "rtl",
+    "grid_system": {
+      "dashboard": "Bento Grid (Grid cols 1 -> 2 -> 4)",
+      "gap": "gap-4 md:gap-6"
+    },
+    "spacing": {
+      "container_padding": "p-4 md:p-8",
+      "section_gap": "gap-8"
+    },
+    "sidebar": {
+      "width": "w-64",
+      "position": "right",
+      "behavior": "Fixed on desktop, Drawer on mobile"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "Flat, 1px border (border-slate-800), bg-slate-950/50 backdrop-blur-md",
+      "hover": "border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)] transition-all duration-300"
+    },
+    "buttons": {
+      "primary": "bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow-[0_0_10px_rgba(37,99,235,0.3)] transition-all",
+      "secondary": "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md",
+      "danger": "bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-md"
+    },
+    "inputs": {
+      "style": "bg-slate-950 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-md h-10 px-3 text-sm"
+    },
+    "tables": {
+      "style": "w-full text-sm text-right",
+      "header": "bg-slate-900/50 text-slate-400 font-medium h-10",
+      "row": "border-b border-slate-800 hover:bg-slate-900/30 transition-colors h-12"
+    },
+    "status_badges": {
+      "online": "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-medium",
+      "offline": "bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded text-xs font-medium",
+      "pending": "bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-medium"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-950/70 border border-white/5",
+    "glow_effects": "Use subtle box-shadow glows for active states, not just color changes.",
+    "textures": "Subtle noise overlay on the main background to reduce banding and add 'tactile' feel.",
+    "icons": "Lucide React (Stroke width 1.5px for elegance)"
+  },
+  "motion": {
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 10 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -10 },
+      "transition": { "duration": 0.3, "ease": "easeOut" }
+    },
+    "list_stagger": {
+      "container": {
+        "hidden": { "opacity": 0 },
+        "show": {
+          "opacity": 1,
+          "transition": { "staggerChildren": 0.05 }
+        }
+      },
+      "item": {
+        "hidden": { "opacity": 0, "x": 20 },
+        "show": { "opacity": 1, "x": 0 }
+      }
+    }
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1759661881353-5b9cc55e1cf4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwxfHxjeWJlciUyMHNlY3VyaXR5JTIwYWJzdHJhY3QlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NjkxNTUyODN8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract dark cyber security background for login page"
+    },
+    "server_hero": {
+      "url": "https://images.unsplash.com/photo-1614508569207-3295ac89d75f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxzZXJ2ZXIlMjByb29tJTIwZGF0YSUyMGNlbnRlciUyMGRhcmslMjBuZW9ufGVufDB8fHx8MTc2OTE1NTI4NHww&ixlib=rb-4.1.0&q=85",
+      "description": "Dark server room with neon lights for server management section"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. RTL FIRST: Always ensure 'dir=rtl' is respected. Margins/Paddings must be logical (ms, me) or flipped for RTL.",
+    "2. DARK MODE ONLY: Do not implement a light mode unless explicitly asked. Focus on perfecting the dark mode contrast.",
+    "3. DATA DENSITY: This is an admin panel. Do not use excessive whitespace that hides data. Use dense tables and grids.",
+    "4. SHADCN CUSTOMIZATION: Do not use default Shadcn styles. Override radius to 'md' or 'sm'. Remove default light mode colors.",
+    "5. PERSIAN FONTS: Ensure 'Vazirmatn' is loaded and applied to all Persian text. Use 'JetBrains Mono' for all technical data (IPs, UUIDs, Keys).",
+    "6. TESTING: Add 'data-testid' to all interactive elements (buttons, inputs, rows)."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
+    "Prioritize using pre-existing components from src/components/ui when applicable",
+    "Create new components that match the style and conventions of existing components when needed",
+    "Examine existing components to understand the project's component patterns before creating new ones",
+    "Components MUST use named exports (export const ComponentName = ...)",
+    "Pages MUST use default exports (export default function PageName() {...})",
+    "Use 'sonner' for toasts. Sonner component are located in /app/src/components/ui/sonner.tsx"
+  ]
+}
