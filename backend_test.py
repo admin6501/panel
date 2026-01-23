@@ -133,19 +133,66 @@ class V2RayBotAPITester:
         success, _ = self.run_test("Delete Server", "DELETE", f"servers/{server_id}", 200)
         return success
 
+    def test_categories_crud(self):
+        """Test categories CRUD operations"""
+        print("\n📋 Testing Categories CRUD...")
+        
+        # Get categories
+        success, categories = self.run_test("Get Categories", "GET", "categories", 200)
+        if not success:
+            return False
+
+        # Create category
+        category_data = {
+            "name": "Test Category",
+            "description": "Test category for API testing",
+            "icon": "📦",
+            "color": "#3b82f6",
+            "is_active": True,
+            "sort_order": 0
+        }
+        success, created_category = self.run_test("Create Category", "POST", "categories", 200, category_data)
+        if not success:
+            return False
+
+        category_id = created_category.get('id')
+        if not category_id:
+            print("❌ No category ID returned from create")
+            return False
+
+        # Update category
+        update_data = {"name": "Updated Test Category", "color": "#ef4444"}
+        success, _ = self.run_test("Update Category", "PUT", f"categories/{category_id}", 200, update_data)
+        if not success:
+            return False
+
+        # Test category deletion (will be done after plan tests)
+        return True, category_id
+
     def test_plans_crud(self):
-        """Test plans CRUD operations"""
+        """Test plans CRUD operations including unlimited features"""
         print("\n📋 Testing Plans CRUD...")
         
+        # First create a test category
+        category_success, category_id = self.test_categories_crud()
+        if not category_success:
+            return False
+
         # Get plans
         success, plans = self.run_test("Get Plans", "GET", "plans", 200)
         if not success:
             return False
 
-        # Create plan
+        # Test filtering plans by category
+        success, filtered_plans = self.run_test("Get Plans by Category", "GET", f"plans?category_id={category_id}", 200)
+        if not success:
+            return False
+
+        # Create regular plan with category
         plan_data = {
             "name": "Test Plan",
             "description": "Test plan for API testing",
+            "category_id": category_id,
             "price": 50000,
             "duration_days": 30,
             "traffic_gb": 100,
@@ -155,7 +202,7 @@ class V2RayBotAPITester:
             "is_test": True,
             "sort_order": 0
         }
-        success, created_plan = self.run_test("Create Plan", "POST", "plans", 200, plan_data)
+        success, created_plan = self.run_test("Create Plan with Category", "POST", "plans", 200, plan_data)
         if not success:
             return False
 
@@ -164,14 +211,94 @@ class V2RayBotAPITester:
             print("❌ No plan ID returned from create")
             return False
 
+        # Create unlimited duration plan
+        unlimited_duration_data = {
+            "name": "Unlimited Duration Plan",
+            "description": "Plan with unlimited duration",
+            "category_id": category_id,
+            "price": 100000,
+            "duration_days": None,  # Unlimited duration
+            "traffic_gb": 50,
+            "user_limit": 1,
+            "server_ids": [],
+            "is_active": True,
+            "is_test": True,
+            "sort_order": 1
+        }
+        success, unlimited_duration_plan = self.run_test("Create Unlimited Duration Plan", "POST", "plans", 200, unlimited_duration_data)
+        if not success:
+            return False
+
+        unlimited_duration_id = unlimited_duration_plan.get('id')
+
+        # Create unlimited traffic plan
+        unlimited_traffic_data = {
+            "name": "Unlimited Traffic Plan",
+            "description": "Plan with unlimited traffic",
+            "category_id": category_id,
+            "price": 150000,
+            "duration_days": 30,
+            "traffic_gb": None,  # Unlimited traffic
+            "user_limit": 1,
+            "server_ids": [],
+            "is_active": True,
+            "is_test": True,
+            "sort_order": 2
+        }
+        success, unlimited_traffic_plan = self.run_test("Create Unlimited Traffic Plan", "POST", "plans", 200, unlimited_traffic_data)
+        if not success:
+            return False
+
+        unlimited_traffic_id = unlimited_traffic_plan.get('id')
+
+        # Create fully unlimited plan
+        fully_unlimited_data = {
+            "name": "Fully Unlimited Plan",
+            "description": "Plan with unlimited duration and traffic",
+            "category_id": category_id,
+            "price": 200000,
+            "duration_days": None,  # Unlimited duration
+            "traffic_gb": None,     # Unlimited traffic
+            "user_limit": 1,
+            "server_ids": [],
+            "is_active": True,
+            "is_test": True,
+            "sort_order": 3
+        }
+        success, fully_unlimited_plan = self.run_test("Create Fully Unlimited Plan", "POST", "plans", 200, fully_unlimited_data)
+        if not success:
+            return False
+
+        fully_unlimited_id = fully_unlimited_plan.get('id')
+
         # Update plan
         update_data = {"name": "Updated Test Plan", "price": 60000}
         success, _ = self.run_test("Update Plan", "PUT", f"plans/{plan_id}", 200, update_data)
         if not success:
             return False
 
-        # Delete plan
+        # Verify unlimited plans were created correctly
+        success, plan_details = self.run_test("Get Updated Plan", "GET", f"plans", 200)
+        if success:
+            print("   ✅ Verifying unlimited plan features...")
+            for plan in plan_details:
+                if plan['id'] == unlimited_duration_id and plan['duration_days'] is None:
+                    print("   ✅ Unlimited duration plan created correctly")
+                elif plan['id'] == unlimited_traffic_id and plan['traffic_gb'] is None:
+                    print("   ✅ Unlimited traffic plan created correctly")
+                elif plan['id'] == fully_unlimited_id and plan['duration_days'] is None and plan['traffic_gb'] is None:
+                    print("   ✅ Fully unlimited plan created correctly")
+
+        # Delete plans
         success, _ = self.run_test("Delete Plan", "DELETE", f"plans/{plan_id}", 200)
+        if success:
+            self.run_test("Delete Unlimited Duration Plan", "DELETE", f"plans/{unlimited_duration_id}", 200)
+            self.run_test("Delete Unlimited Traffic Plan", "DELETE", f"plans/{unlimited_traffic_id}", 200)
+            self.run_test("Delete Fully Unlimited Plan", "DELETE", f"plans/{fully_unlimited_id}", 200)
+
+        # Delete test category
+        success, _ = self.run_test("Delete Test Category", "DELETE", f"categories/{category_id}", 200)
+        
         return success
 
     def test_orders_and_payments(self):
