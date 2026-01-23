@@ -533,11 +533,33 @@ body {
   color: var(--foreground);
   cursor: pointer;
   transition: background-color 0.2s, border-color 0.2s;
+  position: relative;
+  z-index: 10;
 }
 
 .theme-toggle:hover {
   background: var(--muted);
-  border-color: var(--muted-foreground);
+  border-color: var(--primary);
+}
+
+.theme-toggle:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* Modal fix - prevent click interception */
+.modal-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease-out;
+  position: relative;
+  z-index: 51;
 }
 
 @layer utilities {
