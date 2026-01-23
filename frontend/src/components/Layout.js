@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   LayoutDashboard,
   Users,
@@ -15,11 +16,14 @@ import {
   LogOut,
   Menu,
   X,
-  Bot
+  Bot,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 const Layout = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -42,36 +46,52 @@ const Layout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#020617]">
+    <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0f172a] border-b border-[#1e293b] z-50 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 text-slate-400 hover:text-white"
+          className="p-2 text-muted-foreground hover:text-foreground"
           data-testid="mobile-menu-btn"
         >
           {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
         <div className="flex items-center gap-2">
-          <Bot className="text-blue-500" size={24} />
-          <span className="font-bold text-white">V2Ray Bot</span>
+          <Bot className="text-primary" size={24} />
+          <span className="font-bold text-foreground">V2Ray Bot</span>
         </div>
-        <div className="w-10" />
+        <button
+          onClick={toggleTheme}
+          className="theme-toggle"
+          data-testid="mobile-theme-toggle"
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
       </div>
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 right-0 h-full w-64 bg-[#0f172a] border-l border-[#1e293b] z-40 transform transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed top-0 right-0 h-full w-64 bg-card border-l border-border z-40 transform transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-4 border-b border-[#1e293b]">
-          <Bot className="text-blue-500" size={28} />
-          <div>
-            <h1 className="font-bold text-white">V2Ray Bot</h1>
-            <p className="text-xs text-slate-500">پنل مدیریت</p>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <Bot className="text-primary" size={28} />
+            <div>
+              <h1 className="font-bold text-foreground">V2Ray Bot</h1>
+              <p className="text-xs text-muted-foreground">پنل مدیریت</p>
+            </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle hidden lg:flex"
+            data-testid="theme-toggle"
+            title={theme === 'dark' ? 'تم روشن' : 'تم تاریک'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
 
         {/* Navigation */}
@@ -85,8 +105,8 @@ const Layout = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                    : 'text-slate-400 hover:bg-[#1e293b] hover:text-white'
+                    ? 'bg-primary/10 text-primary border border-primary/20'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`
               }
               data-testid={`nav-${item.path.replace('/', '') || 'dashboard'}`}
@@ -98,15 +118,15 @@ const Layout = () => {
         </nav>
 
         {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1e293b]">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-white">{user?.username}</p>
-              <p className="text-xs text-slate-500">{user?.role === 'super_admin' ? 'مدیر کل' : 'ادمین'}</p>
+              <p className="font-medium text-foreground">{user?.username}</p>
+              <p className="text-xs text-muted-foreground">{user?.role === 'super_admin' ? 'مدیر کل' : 'ادمین'}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+              className="p-2 text-muted-foreground hover:text-destructive transition-colors"
               data-testid="logout-btn"
             >
               <LogOut size={20} />
