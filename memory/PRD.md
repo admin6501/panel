@@ -33,7 +33,8 @@
 - Auth endpoints (login, me, change-password)
 - Admin management CRUD
 - Server management CRUD + test connection
-- Plan management CRUD
+- **Category management CRUD** (NEW)
+- Plan management CRUD (with category support, unlimited duration/traffic)
 - Order management with filters
 - Payment management with approve/reject
 - Discount codes CRUD
@@ -46,11 +47,13 @@
 - Telegram bot handlers (buy, support, wallet, account)
 
 ### Frontend (React)
-- Login page with dark theme
+- Login page with dark/light theme
+- **Theme toggle (dark/light)** (NEW)
 - Dashboard with stats cards and charts (revenue, orders)
 - Users list with search and filters
 - Servers management
-- Plans management
+- **Plans management with categories** (NEW)
+- **Support for unlimited duration/traffic** (NEW)
 - Orders list
 - Payments with approve/reject modal
 - Discount codes management
