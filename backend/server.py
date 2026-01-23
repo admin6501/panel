@@ -306,8 +306,19 @@ async def delete_category(category_id: str, current_user: TokenData = Depends(re
 # ==================== PLAN MANAGEMENT ====================
 
 @app.get("/api/plans")
-async def get_plans(current_user: TokenData = Depends(require_admin)):
-    plans = list(plans_col.find({}, {"_id": 0}).sort("sort_order", 1))
+async def get_plans(category_id: Optional[str] = None, current_user: TokenData = Depends(require_admin)):
+    query = {}
+    if category_id:
+        query["category_id"] = category_id
+    
+    plans = list(plans_col.find(query, {"_id": 0}).sort("sort_order", 1))
+    
+    # Enrich with category info
+    for plan in plans:
+        if plan.get("category_id"):
+            category = categories_col.find_one({"id": plan["category_id"]}, {"_id": 0})
+            plan["category"] = category
+    
     return plans
 
 
