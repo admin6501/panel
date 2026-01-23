@@ -432,7 +432,7 @@ class V2RayBotAPITester:
 
         # Test CRUD operations
         self.test_servers_crud()
-        self.test_plans_crud()
+        self.test_plans_crud()  # This now includes categories testing
         self.test_discount_codes_crud()
 
         # Test listing endpoints
