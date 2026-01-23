@@ -331,7 +331,8 @@ class V2RayBotAPITester:
         if self.failed_tests:
             print(f"\n❌ Failed Tests:")
             for test in self.failed_tests:
-                print(f"   - {test['test']}: {test.get('error', f'Expected {test.get(\"expected\")}, got {test.get(\"actual\")}')}")
+                error_msg = test.get('error', f"Expected {test.get('expected')}, got {test.get('actual')}")
+                print(f"   - {test['test']}: {error_msg}")
 
 def main():
     tester = V2RayBotAPITester()
