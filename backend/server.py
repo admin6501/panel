@@ -16,6 +16,7 @@ from models import (
     Token, LoginRequest, TokenData, UserRole,
     AdminCreate, AdminUpdate,
     ServerCreate, ServerUpdate,
+    CategoryCreate, CategoryUpdate,
     PlanCreate, PlanUpdate,
     OrderStatus, PaymentStatus, PaymentReview,
     DiscountCodeCreate, DiscountCodeUpdate,
@@ -58,6 +59,7 @@ db = client[DB_NAME]
 admins_col = db["admins"]
 users_col = db["telegram_users"]
 servers_col = db["servers"]
+categories_col = db["categories"]
 plans_col = db["plans"]
 orders_col = db["orders"]
 payments_col = db["payments"]
