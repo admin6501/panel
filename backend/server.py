@@ -259,6 +259,50 @@ async def test_server_connection(server_id: str, current_user: TokenData = Depen
         return {"status": "error", "message": str(e)}
 
 
+# ==================== CATEGORY MANAGEMENT ====================
+
+@app.get("/api/categories")
+async def get_categories(current_user: TokenData = Depends(require_admin)):
+    categories = list(categories_col.find({}, {"_id": 0}).sort("sort_order", 1))
+    return categories
+
+
+@app.post("/api/categories")
+async def create_category(category: CategoryCreate, current_user: TokenData = Depends(require_admin)):
+    new_category = {
+        "id": str(uuid.uuid4()),
+        **category.model_dump(),
+        "created_at": datetime.utcnow()
+    }
+    categories_col.insert_one(new_category)
+    return {k: v for k, v in new_category.items() if k != "_id"}
+
+
+@app.put("/api/categories/{category_id}")
+async def update_category(category_id: str, category_update: CategoryUpdate, current_user: TokenData = Depends(require_admin)):
+    category = categories_col.find_one({"id": category_id})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    update_data = {k: v for k, v in category_update.model_dump().items() if v is not None}
+    if update_data:
+        categories_col.update_one({"id": category_id}, {"$set": update_data})
+    
+    return categories_col.find_one({"id": category_id}, {"_id": 0})
+
+
+@app.delete("/api/categories/{category_id}")
+async def delete_category(category_id: str, current_user: TokenData = Depends(require_admin)):
+    # Check if category has plans
+    if plans_col.count_documents({"category_id": category_id}) > 0:
+        raise HTTPException(status_code=400, detail="این دسته‌بندی دارای پلن است و نمی‌توان حذف کرد")
+    
+    result = categories_col.delete_one({"id": category_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return {"message": "Category deleted"}
+
+
 # ==================== PLAN MANAGEMENT ====================
 
 @app.get("/api/plans")
